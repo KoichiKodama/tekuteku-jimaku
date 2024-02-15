@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang='ja' data-bs-theme="dark">
+<head>
+	<meta charset='UTF-8'>
+	<title>字幕作業の道具箱</title>
+	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
+	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
+</head>
+<body>
+<div class="container">
+<div class="col-4 mx-auto mt-5">
+	<h4 class="text-center">道具箱</h4>
+	<div class="d-grid mx-auto">
+		<button class="btn btn-secondary" id="vtt-2-tekuteku">VTT ファイルを、てくてく字幕テキストに変換する</button>
+		<input type="file" class="form-control" id="input-vtt-file" style="display:none;" />
+	</div>
+	<div class="card"><div class="card-body">
+		<h5 class="card-title">てくてく仕様の字幕テキストの書式</h5>
+		<ul class="card-text">
+		<li>各字幕1行
+		<li>複数行の字幕は、改行ではなく tab で区切る</li>
+		<li>各字幕の先頭に時刻情報があっても良い</li>
+		</ul>
+	</div></div>
+</div>
+</div>
+
+<script src='./tools/jquery-3.6.0/jquery-3.6.0.min.js'></script>
+<script src='./tools/bootstrap-5.3.0/js/bootstrap.bundle.min.js'></script>
+<script src='./tools/sprintf-1.1.2/sprintf.min.js'></script>
+<script type="text/javascript"> 
+'use strict';
+
+function t2s(t) {
+	if ( t === NaN ) return "--:--:--";
+	var tt = t*1000;
+	var xx = tt%1000; tt = Math.floor(tt/1000);
+	var ss = tt%60; tt = Math.floor(tt/60);
+	var mm = tt%60; tt = Math.floor(tt/60);
+	var hh = tt;
+	return sprintf("%02d:%02d:%02d.%03d",hh,mm,ss,xx);
+}
+
+function s2t(s) {
+	if ( /^[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}$/.test(s) == false ) { console.log('invalid time string ... '+s); }
+	return parseFloat(s.substr(0,2))*3600+parseFloat(s.substr(3,2))*60+parseFloat(s.substr(6,2))+0.001*parseFloat(s.substr(9,3));
+}
+
+class myque {
+	i;
+	startTime;
+	endTime;
+	text;
+	constructor(i,start,end,text) {
+		this.i = i;
+		this.startTime = start;
+		this.endTime = end;
+		this.text = text;
+	}
+};
+
+var vtt_lst = [];
+
+$(document).ready( function(){
+	$('#vtt-2-tekuteku').on('click',function(){ $('#input-vtt-file').click(); });
+	$('#input-vtt-file').on('change',function(){
+		if ( this.files.length == 1 ) {
+			var blob = this.files[0];
+			let vtt_name = blob.name;
+			var reader = new FileReader();
+			reader.readAsText(blob);
+			reader.onload = async function(){
+				if ( /^WEBVTT/.test(reader.result) == true ) {
+					vtt_lst = [];
+					reader.result.replace(/\r\n/g,'\n').split(/\n\n/).forEach((c)=>{
+						var a = /([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ ]+-->[ ]+([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})\n([^]+)$/.exec(c);
+						if ( a !== null && a[3] != "" ) { vtt_lst.push(new myque(vtt_lst.length,s2t(a[1]),s2t(a[2]),a[3])); }
+					});
+				}
+				else { alert('VTT形式ではありません。'); }
+				$('#input-vtt-file').val('');
+
+				let tekuteku_name = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.tekuteku.txt');
+				var a = [];
+				vtt_lst.forEach(function(c,i){ a.push(sprintf('%s --> %s %s\n',t2s(c.startTime),t2s(c.endTime),c.text.replace(/\n/g,'\t'))); });
+				var blob = new Blob(a,{type:'text/plain'});
+				const x = document.createElement("a");
+				document.body.appendChild(x);
+				x.download = tekuteku_name;
+				x.href = URL.createObjectURL(blob);
+				x.click();
+				x.remove();
+				URL.revokeObjectURL(x.href);
+			};
+		}
+	});
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang='ja'>
+<head>
+	<meta charset='UTF-8'>
+	<title>時刻合わせ 2024-02-10</title>
+	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
+	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
+</head>
+<body>
+<div class="container-fluid">
+	<div class="row justify-content-center">
+		<div class="col d-flex flex-column" id="div-video" style="display:table;">
+			<div class="input-group m-1 xxx"><select class="form-select" id="video-control-select">
+				<option value="mp4" selected>動画ファイル</option>
+				<option value="youtube">YouTube</option>
+			</select></div>
+			<div class="ratio ratio-16x9 m-1" id="video-div"></div>
+			<div class="input-group m-1">
+			<textarea id="text-subtitle" class="cue-text form-control text-center" rows="5" style="resize:none; overflow:hidden;" readonly></textarea>
+			</div>
+			<div class="input-group m-1 xxx" id="video-id-div">
+				<span class="input-group-text btn-secondary">動画</span>
+				<button class="btn btn-secondary" id="load-video">読込</button>
+			</div>
+			<div class="input-group m-1 xxx">
+				<span class="input-group-text btn-secondary">字幕</span>
+				<input type="text" class="form-control" id="vtt-name" readonly placeholder="右の読込ボタンを押す。"/>
+				<input type="file" class="form-control" id="input-vtt-file" style="display:none;" />
+				<button class="btn btn-secondary" id="input-vtt">読込</button>
+				<button class="btn btn-secondary" id="save-vtt">保存</button>
+			</div>
+			<div class="btn-toolbar m-1 mt-2 xxx">
+				<div class="btn-group me-2"><button type="button" class="btn btn-secondary" id="split-vtt">長文字幕分割</button></div>
+				<div class="btn-group me-2"><button type="button" class="btn btn-secondary" id="remove-blank-vtt">空字幕削除</button></div>
+				<div class="btn-group me-2"><a class="btn btn-secondary" href="./toolbox.html" target="_blank" role="button">道具箱</a></div>
+				<div class="btn-group ms-auto"><button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#usage" data-backdrop="false">使い方</button></div>
+			</div>
+			<div class="m-1">
+				<div><input class="form-check-input m-2 xxx" type="checkbox" value="" id="time-shift"><label class="form-check-label xxx">時刻合わせで以降の字幕を平行移動する</label></div>
+				<div>
+					<input class="form-check-input m-2" type="checkbox" value="" id="readonly"><label class="form-check-label">見るだけ</label>
+					<input class="form-check-input m-2 xxx" type="checkbox" value="" id="dark-mode" checked><label class="form-control-label xxx">ダークモード</label>
+				</div>
+			</div>
+		</div>
+		<div class="col-8 xxx" id="div-subtitle" style="overflow-x:clip;overflow-y:auto;">
+			<table class="table table-sm table-bordered align-middle m-2" id="table-subtitle">
+			<thead><tr><th class="text-center" style="width:50px;"></th><th class="text-center" style="width:50px;"></th><th class="text-center" style="width:100px;"></th><th style="width:70px;"></th><th></th></tr></thead>
+			<tbody></tbody>
+			</table>
+		</div>
+	</div>
+	<div class="row d-flex align-items-center" id="div-control">
+		<div class="col-auto">
+			<div class="btn-group m-2">
+			<button class="btn btn-secondary" id="play-pause"><img src="./icons/play-white.svg" width="24" height="24"/></button>
+			<button class="btn btn-secondary" id="stop"><img src="./icons/stop-white.svg" width="24" height="24"/></button>
+			</div>
+		</div>
+		<div class="col-auto"><button class="btn btn-secondary" id="step-backward" data-bs-toggle="tooltip" title="1秒戻す"><img src="./icons/caret-left-white.svg" width="24" height="24"/></button></div>
+		<div class="col"><input class="form-range" type="range" id="video-seek" disabled /></div>
+		<div class="col-auto"><button class="btn btn-secondary" id="step-forward" data-bs-toggle="tooltip" title="1秒進める"><img src="./icons/caret-right-white.svg" width="24" height="24"/></button></div>
+		<div class="col-auto"><input class="form-text text-center" type="text" id="video-time" disabled /></div>
+	</div>
+</div>
+
+<div class="modal fade" id="usage">
+	<div class="modal-dialog">
+	<div class="modal-content">
+		<div class="modal-header"><span class="badge bg-success fs-5 w-100 text-center align-middle">使い方</span></div>
+		<div class="modal-body">
+			<ul>
+				<li>字幕を表示する位置で動画を停止し、行頭ボタンで表示時刻設定</li>
+				<li>継続時間は秒単位の値を入力</li>
+				<li>テキスト修正は他に移動すると確定。移動前 Ctrl-Z で取消し</li>
+				<li>表示時刻左クリックで、動画の頭出し</li>
+				<li>黄色の表示時刻は、前の字幕とのかぶり警告</li>
+				<li>作業完了後、字幕ファイルを保存</li>
+			</ul>
+		</div>
+		<div class="modal-footer"><button type="button" class="btn btn-default" data-bs-dismiss="modal">閉じる</button></div>
+	</div>
+	</div>
+</div>
+	
+<script src='./tools/jquery-3.6.0/jquery-3.6.0.min.js'></script>
+<script src='./tools/bootstrap-5.3.0/js/bootstrap.bundle.min.js'></script>
+<script src='./tools/sprintf-1.1.2/sprintf.min.js'></script>
+<script type='text/javascript'>
+'use strict';
+
+function set_theme(theme) { document.documentElement.setAttribute('data-bs-theme',theme); }
+
+class myque {
+	i;
+	startTime;
+	endTime;
+	text;
+	constructor(i,start,end,text) {
+		this.i = i;
+		this.startTime = start;
+		this.endTime = end;
+		this.text = text;
+	}
+};
+
+var video_control = null;
+var vtt_name;
+var vtt_lst = [];
+var vtt_src = null;
+var vtt_height = 0;
+var time_shift = false;
+var default_cue_duration = 2;
+var default_cue_blank = 1;
+
+function t2s(t) {
+	if ( t === NaN ) return "--:--:--";
+	var xx = (t*1000)%1000; t = Math.floor(t);
+	var ss = t%60; t = Math.floor(t/60);
+	var mm = t%60; t = Math.floor(t/60);
+	var hh = t;
+	return sprintf("%02d:%02d:%02d.%03d",hh,mm,ss,xx);
+}
+
+function s2t(s) {
+	if ( /^[0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}$/.test(s) == false ) { console.log('invalid time string ... '+s); }
+	return parseFloat(s.substr(0,2))*3600+parseFloat(s.substr(3,2))*60+parseFloat(s.substr(6,2))+0.001*parseFloat(s.substr(9,3));
+}
+
+function adjust_time(i) {
+	for (var j=i+1;j<vtt_lst.length;j++) {
+		var c_prev = vtt_lst[j-1]
+		var c = vtt_lst[j];
+		if ( c.startTime < c_prev.endTime ) {
+			c.endTime += (c_prev.endTime-c.startTime);
+			c.startTime = c_prev.endTime;
+		}
+	}
+}
+
+function shift_time(i,dt) {
+	for (var j=i+1;j<vtt_lst.length;j++) {
+		var c = vtt_lst[j];
+		c.startTime += dt;
+		c.endTime += dt;
+	}
+}
+
+function count_rows(s) {
+	var rows = 1;
+	for (var i=0;i<s.length;i++) { if ( s[i] == '\n' ) ++rows; }
+	return rows;
+}
+
+function adjust_video() { $('#div-video,#div-subtitle').height($(window).height()-$('#div-control').height()); }
+
+function my_split(s,min_length,max_length,lang) {
+	var b = [];
+	if ( lang == 'ja-JP' ) {
+		// [\u3041-\u3096] : ひらがな（サロゲートペアは除く）
+		// [\u3041-\u3096]([\u3400-\u9FFF\uF900-\uFAFF]) : ひらがな＋漢字
+		// Chrome の音声認識は文の間に半角スペースが入る。
+		//
+		s.split(/\n/).forEach((y)=>{
+			for (let x=y;;) {
+				if ( x.length <= min_length ) { if ( x.length != 0 ) { b.push(x); } break; }
+				let i = x.substring(min_length,max_length+1).search(/([ .,。、]|[\u3041-\u3096][\u3400-\u9FFF\uF900-\uFAFF])/);
+				let j = ( i == -1 ? max_length : min_length+i+1 );
+				b.push(x.substring(0,j));
+				x = x.substring(j);
+			}
+		});
+	}
+	else {
+		s.split(/\n/).forEach((y)=>{
+			for (let x=y;;) {
+				if ( x.length <= min_length ) { if ( x.length != 0 ) { b.push(x); } break; }
+				let i = x.substring(min_length,max_length+1).search(/[ .,:;]/);
+				let j = ( i == -1 ? max_length : min_length+i+1 );
+				b.push(x.substring(0,j));
+				x = x.substring(j);
+			}
+		});
+	}
+	return b;
+}
+
+function split_vtt() {
+	if ( vtt_lst.length == 0 ) { return; }
+	let l = [];
+	vtt_lst.forEach((c,i)=>{
+		if ( c.text.length < 30 ) { l.push(c); return; }
+		let a = my_split(c.text,25,30,'ja-JP');
+		let t = c.startTime;
+		let dt = (c.endTime-c.startTime)/a.length;
+		a.forEach((x)=>{ l.push(new myque(l.length,t,t+dt,x)); t+=dt; });
+	});
+	vtt_lst = l;
+}
+
+function remove_blank_vtt() { vtt_lst = vtt_lst.filter((c)=>{ return c.text.length != 0; }); }
+
+function update_vtt() {
+	$('#table-subtitle [data-bs-toggle="tooltip"]').map(function(i,e){ bootstrap.Tooltip.getInstance(e).dispose(); });
+	$('#table-subtitle > tbody').empty();
+	var fmt = 
+		'<tr>'+
+		'<td><button class="btn btn-secondary text-white cue-button" value="%d" data-bs-toggle="tooltip" title="時刻設定"><img src="./icons/pin-white.svg" width="24" height="24"/></button></td>'+
+		'<td><button class="btn btn-secondary text-white ins-button" value="%d" data-bs-toggle="tooltip" title="下に挿入"><img src="./icons/arrow-bar-down-white.svg" width="24" height="24"/></button></td>'+
+		'<td class="cue-time %s">%s</td><td><input type="text" class="cue-duration form-control text-end" style="height:2em;" value="%.1f" data-bs-toggle="tooltip" title="継続時間"/></td>'+
+		'<td><textarea class="cue-text form-control" rows="%d" style="resize:none; overflow:hidden;">%s</textarea></td>'+
+		'</tr>';
+	vtt_lst
+		.sort((a,b)=>{ return ( a.startTime == b.startTime ? ( a.i < b.i ? -1 : +1 ) : ( a.startTime < b.startTime ? -1 : +1 ) ); })
+		.forEach(function(c,i){
+			let color = ( i != 0 && c.startTime < vtt_lst[i-1].endTime ? 'text-bg-warning' : '' );
+			$('#table-subtitle > tbody').append(sprintf(fmt,i,i,color,t2s(c.startTime),(c.endTime-c.startTime),count_rows(c.text),c.text));
+			c.i = i;
+		});
+	$('#table-subtitle [data-bs-toggle="tooltip"]').map(function(i,e){ new bootstrap.Tooltip(e,{trigger:'hover'}); });
+}
+
+$(document).ready( function(){
+	set_theme($('#dark-mode').prop('checked') == true ? 'dark' : 'light');
+	$('#dark-mode').on('change',function(){ set_theme($('#dark-mode').prop('checked') == true ? 'dark' : 'light'); });
+
+	$('[data-bs-toggle="tooltip"]').map(function(i,e){ new bootstrap.Tooltip(e,{trigger:'hover'}); });
+	set_video_control();
+	adjust_video();
+	$(window).resize(function(){ adjust_video(); });
+	$('#readonly').on('change',function(){
+		if ( $('#readonly').prop('checked') == true ) {
+			$('.xxx').hide();
+			$('#div-video').addClass('col-9');
+			$('#text-subtitle').addClass('fs-5');
+		}
+		else {
+			$('#div-video').removeClass('col-9');
+			$('#text-subtitle').removeClass('fs-5');
+			$('.xxx').show();
+		}
+	});
+	$('#video-control-select').on('change',()=>{ set_video_control(); });
+	$('#time-shift').on('change',()=>{ time_shift = $('#time-shift').prop('checked'); });
+	$('#split-vtt').on('click',()=>{ split_vtt(); update_vtt(); });
+	$('#remove-blank-vtt').on('click',()=>{ remove_blank_vtt(); update_vtt(); });
+
+	$('#input-vtt').on('click',function(){ $('#input-vtt-file').click(); });
+	$('#input-vtt-file').on('change',function(){
+		if ( this.files.length == 1 ) {
+			let blob = this.files[0];
+			let reader = new FileReader();
+			reader.readAsText(blob);
+			reader.onload = function(){
+				// BOM 削除と改行コード統一
+				var result = reader.result.replace(/^\ufeff/,"").replace(/\r\n/g,'\n');
+
+				if ( /^WEBVTT/.test(result) == true ) {
+					vtt_lst = [];
+					result.split(/\n{2,}/).forEach((c,i)=>{
+						if ( i == 0 ) return; // WEBVTT の行はスキップする。
+						var a = /([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ ]+-->[ ]+([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}).*\n([^]+)$/.exec(c);
+						if ( a === null ) { // 字幕分割への対応
+							let x = vtt_lst.at(-1);
+							vtt_lst.push(new myque(vtt_lst.length,x.startTime,x.endTime,my_split(c,25,30,'ja-JP').join('\n')));
+						}
+						else if ( a[3] != "" ) { // 空字幕は削除する。
+							vtt_lst.push(new myque(vtt_lst.length,s2t(a[1]),s2t(a[2]),my_split(a[3],25,30,'ja-JP').join('\n')));
+						}
+					});
+				}
+				else {
+					// てくてく仕様の字幕テキスト。
+					// 各字幕1行であり、複数行字幕は tab で区切る。
+					// 各字幕の先頭に時刻情報があっても良い。
+					let t = 0;
+					vtt_lst = [];
+					result.replace(/\r\n/g,'\n').replace(/\n/g,'\n\n').replace(/\t+/g,'\n').split(/\n\n/).forEach((c)=>{
+						if ( c == "" ) return;
+						var a = /([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ ]+-->[ ]+([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ \t]+([^]+)$/.exec(c);
+						if ( a == null ) {
+							vtt_lst.push(new myque(vtt_lst.length,t,t+default_cue_duration,my_split(c,25,30,'ja-JP').join('\n')));
+							t += (default_cue_duration+default_cue_blank);
+						}
+						else {
+							if ( a[3] != "" ) { vtt_lst.push(new myque(vtt_lst.length,s2t(a[1]),s2t(a[2]),my_split(a[3],25,30,'ja-JP').join('\n'))); }
+							t = s2t(a[2])+default_cue_blank;
+						}
+					});
+				}
+				if ( $('#split-vtt').prop('checked') == true ) { split_vtt(); }
+				update_vtt();
+				vtt_name = blob.name;
+				$('#vtt-name').val(vtt_name);
+				$('#input-vtt-file').val('');
+			};
+			window.addEventListener('beforeunload',(event)=>{ event.preventDefault(); event.returnValue = ''; }); // jquey を使うと動作しない。
+		}
+	});
+
+	$('#table-subtitle > tbody')
+	.on('click','.cue-button',function(){
+		var i = parseInt($(this).val());
+		var c = vtt_lst[i];
+		var dt = Math.max(0,video_control.current_time()-0.5)-c.startTime;
+		c.endTime += dt;
+		c.startTime += dt;
+		if ( time_shift == true ) { shift_time(i,dt); }
+		update_vtt();
+	})
+	.on('click','.ins-button',function(){
+		// 字幕を後ろに挿入
+		var i = parseInt($(this).val());
+		var c = vtt_lst[i];
+		vtt_lst.splice(i+1,0,new myque(i+1,c.startTime,c.startTime+1,''));
+		vtt_lst.forEach((c,i)=>{ c.i = i; });
+		update_vtt();
+	})
+	.on('change','.cue-duration',function(){
+		var d = parseFloat($(this).val());
+		if ( isNaN(d) == false ) {
+			var i = parseInt($(this).closest('tr').find('.cue-button').val());
+			var c = vtt_lst[i];
+			c.endTime = c.startTime+d;
+			update_vtt();
+		}
+	})
+	.on('change','.cue-text',function(){
+		var i = parseInt($(this).closest('tr').find('.cue-button').val());
+		var c = vtt_lst[i];
+		c.text = $(this).val();
+		update_vtt();
+	})
+	.on('blur','.cue-text',function(){ if ( $(this).val().length == 0 ) { update_vtt(); }; })
+	.on('click','.cue-time',function(){ video_control.seek(s2t($(this).text())); });
+
+	$('#save-vtt').click(async function(){
+		if ( vtt_name == '' ) { alert('字幕ファイルをロードしていません。'); return; }
+		var name = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.edited.vtt');
+		var a = ["WEBVTT\n\n"];
+		vtt_lst.forEach(function(c,i){ a.push(sprintf('%s --> %s\n%s\n\n',t2s(c.startTime),t2s(c.endTime),c.text)); });
+		const b = new Blob(a,{type:'text/vtt'});
+		const f = await window.showSaveFilePicker({suggestedName:name,types:[{accept:{'text/vtt':['.vtt']}}]});	// ファイル保存ダイアログを表示して FileSystemFileHandle オブジェクトを取得
+		const s = await f.createWritable();	// FileSystemWritableFileStream オブジェクトを取得
+		await s.write(b); // テキストデータをファイルに書き込む
+		await s.close(); // ファイルを閉じる
+//		// 旧来の手法
+//		const url = URL.createObjectURL(b);
+//		const e = document.createElement("a");
+//		document.body.appendChild(e);
+//		e.download = name;
+//		e.href = url;
+//		e.click();
+//		e.remove();
+//		URL.revokeObjectURL(url);
+	});
+
+	$('#video-seek').on('input',function(){ video_control.seek(this.valueAsNumber); });	// this は function() と ()=> で違う。
+	$('#play-pause').on('click',()=>{ if ( video_control.is_paused() ) { video_control.play(); } else { video_control.pause(); } });
+	$('#stop').on('click',()=>{ video_control.seek(0); });
+	$('#step-forward').on('click',()=>{ video_control.seek(Math.min(video_control.duration(),video_control.current_time()+1.0)); });
+	$('#step-backward').on('click',()=>{ video_control.seek(Math.max(0,video_control.current_time()-1.0)); });
+	$('#load-video').on('click',()=>{ video_control.load(); });
+	function on_load(){
+		$('#video-id').val(video_control.video_id());
+		var slide = $('#video-seek').get(0);
+		slide.disabled = false;
+		slide.step = 0.05;
+		slide.min = slide.value = 0;
+		slide.max = video_control.duration();
+		$('#video-time').val(sprintf("%s/%s",t2s(video_control.current_time()).substr(0,8),t2s(video_control.duration()).substr(0,8)));
+	}
+	function on_play(){ $('#play-pause').html('<img src="./icons/pause-white.svg" width="24" height="24" />'); };
+	function on_pause(){ $('#play-pause').html('<img src="./icons/play-white.svg" width="24" height="24" />'); };
+	function on_timechange(){
+		$('#video-time').val(sprintf("%s/%s",t2s(video_control.current_time()).substr(0,8),t2s(video_control.duration()).substr(0,8)));
+		$('#video-seek').val(video_control.current_time());
+	}
+
+	function set_video_control() {
+		if (video_control) { video_control = null; }
+		switch ( $('#video-control-select > option:selected').val() ) {
+		case "mp4":
+			video_control = video_control_mp4();
+			$('#video-div').empty().append('<video id="video"><source src="" type="video" /></video>');
+			$('#video-id-div > input').remove();
+			$('#video-id-div > span').after('<input type="text" class="form-control" id="video-id" readonly placeholder="右の読込ボタンを押す。"/><input type="file" class="form-control" id="input-mp4-file" style="display:none;" />');
+			break;
+		case "youtube":
+			video_control = video_control_youtube();
+			$('#video-div').empty().append('<div id="video"></div>');
+			$('#video-id-div > input').remove();
+			$('#video-id-div > span').after('<input type="text" class="form-control" id="video-id" placeholder="YouTube動画のURLを張り付ける。"/>');
+			break;
+		}
+		video_control.setup_player({ id:'video', on_load:on_load, on_play:on_play, on_pause:on_pause, on_timechange:on_timechange });
+	}
+});
+
+function video_control_mp4() {
+	var video = null;
+	var video_name = 'none';
+	var m_current_vtt = 0;
+
+	function video_id() { return video_name; }
+	function play() { video.play(); }
+	function pause() { video.pause(); }
+	function seek(t) { if (!video.paused) { video.pause(); } video.currentTime = t; }
+	function is_paused() { return ( video.paused ? true : false ); }
+	function duration() { return video.duration; }
+	function current_time() { return video.currentTime; }
+	function setup_player( args ){
+		video = $('#'+args.id).get(0);
+		$(video).on('loadeddata',args.on_load);
+		$(video).on('play',args.on_play);
+		$(video).on('pause ended',args.on_pause);
+		$(video).on('timeupdate',()=>{
+			args.on_timechange();
+			let current_time = video.currentTime;
+			let text = "";
+			for (let i=m_current_vtt;i<vtt_lst.length;i++) {
+				let c = vtt_lst[i];
+				if ( c.startTime > current_time ) { break; }
+				if ( c.endTime >= current_time ) {
+					m_current_vtt = Math.min(m_current_vtt,i);
+					text = ( text.length == 0 ? c.text : text+'\n'+c.text );
+				}
+			}
+			$('#text-subtitle').val(text);
+		});
+	}
+	function load(){
+		$('#input-mp4-file').on('change',function(){
+			if ( this.files.length == 1 ) {
+				var blob = this.files[0];
+				video.src = window.URL.createObjectURL(blob);
+				video_name = blob.name;
+				$('#input-mp4-file').val('');
+			}
+		});
+		$('#input-mp4-file').click();
+	}
+
+	return {
+		video_id : video_id,
+		play : play,
+		pause : pause,
+		seek : seek,
+		is_paused : is_paused,
+		duration : duration,
+		current_time : current_time,
+		setup_player : setup_player,
+		load : load
+	};
+}
+
+function video_control_youtube() {
+	var m_player;
+	var m_id;
+	var m_args;
+	var m_timer;
+	var m_current_time = 0;
+	var m_duration = 0;
+	var m_current_vtt = 0;
+
+	function video_id() { return m_id; }
+	function play(){
+		m_current_time = m_player.getCurrentTime();
+		m_player.playVideo();
+		m_timer = setInterval(function(){
+			m_current_time = m_player.getCurrentTime();
+			m_args.on_timechange();
+			let text = "";
+			for (let i=m_current_vtt;i<vtt_lst.length;i++) {
+				let c = vtt_lst[i];
+				if ( c.startTime > m_current_time ) { break; }
+				if ( c.endTime >= m_current_time ) {
+					m_current_vtt = Math.min(m_current_vtt,i);
+					text = ( text.length == 0 ? c.text : text+'\n'+c.text );
+				}
+			}
+			$('#text-subtitle').val(text);
+		},500);
+	}
+	function pause(){
+		m_current_time = m_player.getCurrentTime();
+		m_player.pauseVideo();
+		clearInterval(m_timer);
+	}
+	function seek(t){
+		m_player.pauseVideo();
+		m_player.seekTo(t,true);
+		m_current_time = t;
+		m_args.on_timechange();
+	}
+	function is_paused(){ return ( m_player.getPlayerState() == YT.PlayerState.PLAYING ? false : true ); }
+	function duration(){ return m_duration; }
+	function current_time(){ return m_current_time; }
+	function setup_player( args ){
+		m_args = args;
+		if ( typeof YT === 'undefined' || typeof YT.Player === 'undefined' ) {
+			$('<script id="youtube-api" src="https://www.youtube.com/iframe_api"/>').insertBefore($('script').get(0));
+			window.onYouTubeIframeAPIReady = function () { create_youtube_player(); }
+		}
+		else { create_youtube_player(); }
+	}
+	function load(){
+		let i = $('#video-id').val().replace(/^https:\/\/www\.youtube\.com\/watch\?(?:[^=]+=[^&]+&)*v=([^&]+).*$/,"$1");
+		if ( i.length != 0 ) { m_player.cueVideoById(i,0); m_id = i; } else { alert("動画の ID を指定して下さい"); }
+	}
+	function on_yt_event(event){
+		if ( event.data == YT.PlayerState.PLAYING ) { m_args.on_play(); } else { m_args.on_pause() }
+		if ( m_player.getDuration() != 0 ) {
+			m_duration = m_player.getDuration();
+			m_current_time = m_player.getCurrentTime();
+			m_args.on_load();
+			m_args.on_timechange();
+		}
+	}
+	function on_yt_error(event){
+		alert("YouTube エラーです");
+		console.log('on_yt_error : '+event);
+	}
+	function create_youtube_player() {
+		m_player = new YT.Player(m_args.id, {
+			width: '640',
+			height: '480',
+			videoId: '8tPnX7OPo0Q',	// 65HvgrsVA-g
+			events: {
+				'onReady': on_yt_event,
+				'onStateChange': on_yt_event,
+				'onError': on_yt_error
+			},
+			playerVars: { 'controls': 0, 'fs': 0, 'modestbranding': 1 }
+		});
+	}
+
+	return {
+		video_id : video_id,
+		play : play,
+		pause : pause,
+		seek : seek,
+		is_paused : is_paused,
+		duration : duration,
+		current_time : current_time,
+		setup_player : setup_player,
+		load : load
+	};
+}
+
+</script>
+</body>
+</html>
