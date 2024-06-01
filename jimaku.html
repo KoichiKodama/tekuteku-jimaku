@@ -2,7 +2,7 @@
 <html lang='ja'>
 <head>
 	<meta charset='UTF-8'>
-	<title>時刻合わせ 2024-02-10</title>
+	<title>時刻合わせ 2024-06-01</title>
 	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
 	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
 </head>
@@ -36,6 +36,7 @@
 				<div class="btn-group ms-auto"><button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#usage" data-backdrop="false">使い方</button></div>
 			</div>
 			<div class="m-1">
+				<div><input class="form-check-input m-2 xxx" type="checkbox" value="" id="save-tekutekutxt"><label class="form-check-label xxx">てくてく字幕テキストで保存する</label></div>
 				<div><input class="form-check-input m-2 xxx" type="checkbox" value="" id="time-shift"><label class="form-check-label xxx">時刻合わせで以降の字幕を平行移動する</label></div>
 				<div>
 					<input class="form-check-input m-2" type="checkbox" value="" id="readonly"><label class="form-check-label">見るだけ</label>
@@ -336,15 +337,24 @@ $(document).ready( function(){
 
 	$('#save-vtt').click(async function(){
 		if ( vtt_name == '' ) { alert('字幕ファイルをロードしていません。'); return; }
-		var name = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.edited.vtt');
-		var a = ["WEBVTT\n\n"];
-		vtt_lst.forEach(function(c,i){ a.push(sprintf('%s --> %s\n%s\n\n',t2s(c.startTime),t2s(c.endTime),c.text)); });
-		const b = new Blob(a,{type:'text/vtt'});
+		let b = undefined;
+		if ( $('#save-tekutekutxt').prop('checked') == false ) {
+			var name = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.編集後.vtt');
+			var a = ["WEBVTT\n\n"];
+			vtt_lst.forEach(function(c,i){ a.push(sprintf('%s --> %s\n%s\n\n',t2s(c.startTime),t2s(c.endTime),c.text)); });
+			b = new Blob(a,{type:'text/vtt'});
+		}
+		else {
+			var name = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.編集後.txt');
+			var a = [];
+			vtt_lst.forEach((c,i)=>{ a.push(sprintf('%s --> %s %s\n',t2s(c.startTime),t2s(c.endTime),c.text.replace(/\n/g,'\t'))); });
+			b = new Blob(a,{type:'text/plain'});
+		}
 		const f = await window.showSaveFilePicker({suggestedName:name,types:[{accept:{'text/vtt':['.vtt']}}]});	// ファイル保存ダイアログを表示して FileSystemFileHandle オブジェクトを取得
 		const s = await f.createWritable();	// FileSystemWritableFileStream オブジェクトを取得
 		await s.write(b); // テキストデータをファイルに書き込む
 		await s.close(); // ファイルを閉じる
-//		// 旧来の手法
+//		旧来の手法
 //		const url = URL.createObjectURL(b);
 //		const e = document.createElement("a");
 //		document.body.appendChild(e);
@@ -397,6 +407,8 @@ $(document).ready( function(){
 	}
 });
 
+const bs_warning = 'text-warning-emphasis bg-warning-subtle border border-warning-subtle';
+
 function video_control_mp4() {
 	var video = null;
 	var video_name = 'none';
@@ -405,7 +417,7 @@ function video_control_mp4() {
 	function video_id() { return video_name; }
 	function play() { video.play(); }
 	function pause() { video.pause(); }
-	function seek(t) { if (!video.paused) { video.pause(); } video.currentTime = t; }
+	function seek(t) { if (!video.paused) { video.pause(); } video.currentTime = t; m_current_vtt = 0; $('#table-subtitle textarea.bg-warning-subtle').removeClass(bs_warning); }
 	function is_paused() { return ( video.paused ? true : false ); }
 	function duration() { return video.duration; }
 	function current_time() { return video.currentTime; }
@@ -418,13 +430,16 @@ function video_control_mp4() {
 			args.on_timechange();
 			let current_time = video.currentTime;
 			let text = "";
+			$('#table-subtitle textarea.bg-warning-subtle').removeClass(bs_warning);
 			for (let i=m_current_vtt;i<vtt_lst.length;i++) {
 				let c = vtt_lst[i];
-				if ( c.startTime > current_time ) { break; }
-				if ( c.endTime >= current_time ) {
-					m_current_vtt = Math.min(m_current_vtt,i);
-					text = ( text.length == 0 ? c.text : text+'\n'+c.text );
-				}
+				if ( c.endTime <= current_time ) { continue; }
+				if ( c.startTime < current_time ) { text = ( text.length == 0 ? c.text : text+'\n'+c.text ); }
+				let o = $('#table-subtitle button[value="'+i+'"]');
+				o.get(0).scrollIntoView({behavior:"instant",block:"center"});
+				o.parent().siblings().find('textarea').addClass(bs_warning);
+				m_current_vtt = i;
+				break;
 			}
 			$('#text-subtitle').val(text);
 		});
@@ -471,13 +486,16 @@ function video_control_youtube() {
 			m_current_time = m_player.getCurrentTime();
 			m_args.on_timechange();
 			let text = "";
+			$('#table-subtitle textarea.bg-warning-subtle').removeClass(bs_warning);
 			for (let i=m_current_vtt;i<vtt_lst.length;i++) {
 				let c = vtt_lst[i];
-				if ( c.startTime > m_current_time ) { break; }
-				if ( c.endTime >= m_current_time ) {
-					m_current_vtt = Math.min(m_current_vtt,i);
-					text = ( text.length == 0 ? c.text : text+'\n'+c.text );
-				}
+				if ( c.endTime <= m_current_time ) { continue; }
+				if ( c.startTime < m_current_time ) { text = ( text.length == 0 ? c.text : text+'\n'+c.text ); }
+				let o = $('#table-subtitle button[value="'+i+'"]');
+				o.get(0).scrollIntoView({behavior:"instant",block:"center"});
+				o.parent().siblings().find('textarea').addClass(bs_warning);
+				m_current_vtt = i;
+				break;
 			}
 			$('#text-subtitle').val(text);
 		},500);
@@ -492,6 +510,8 @@ function video_control_youtube() {
 		m_player.seekTo(t,true);
 		m_current_time = t;
 		m_args.on_timechange();
+		m_current_vtt = 0;
+		$('#table-subtitle textarea.bg-warning-subtle').removeClass(bs_warning);
 	}
 	function is_paused(){ return ( m_player.getPlayerState() == YT.PlayerState.PLAYING ? false : true ); }
 	function duration(){ return m_duration; }
