@@ -2,7 +2,7 @@
 <html lang='ja'>
 <head>
 	<meta charset='UTF-8'>
-	<title>時刻合わせ 2024-06-10</title>
+	<title>時刻合わせ 2024-06-16</title>
 	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
 	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
 </head>
@@ -260,14 +260,8 @@ $(document).ready( function(){
 					vtt_lst = [];
 					result.split(/\n{2,}/).forEach((c,i)=>{
 						if ( i == 0 ) return; // WEBVTT の行はスキップする。
-						var a = /([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ ]+-->[ ]+([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}).*\n([^]+)$/.exec(c);
-						if ( a === null ) { // 字幕分割への対応
-							let x = vtt_lst.at(-1);
-							vtt_lst.push(new myque(vtt_lst.length,x.startTime,x.endTime,my_split(c,25,30,'ja-JP').join('\n')));
-						}
-						else if ( a[3] != "" ) { // 空字幕は削除する。
-							vtt_lst.push(new myque(vtt_lst.length,s2t(a[1]),s2t(a[2]),my_split(a[3],25,30,'ja-JP').join('\n')));
-						}
+						var a = /([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ ]+-->[ ]+([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}).*(|\n([^]+))$/.exec(c);
+						if ( a !== null ) { vtt_lst.push(new myque(vtt_lst.length,s2t(a[1]),s2t(a[2]),my_split(a[3],25,30,'ja-JP').join('\n'))); }
 					});
 				}
 				else {

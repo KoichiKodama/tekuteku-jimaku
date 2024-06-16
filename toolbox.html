@@ -73,8 +73,8 @@ $(document).ready( function(){
 				if ( /^WEBVTT/.test(reader.result) == true ) {
 					vtt_lst = [];
 					reader.result.replace(/\r\n/g,'\n').split(/\n\n/).forEach((c)=>{
-						var a = /([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ ]+-->[ ]+([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})\n([^]+)$/.exec(c);
-						if ( a !== null && a[3] != "" ) { vtt_lst.push(new myque(vtt_lst.length,s2t(a[1]),s2t(a[2]),a[3])); }
+						var a = /([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ ]+-->[ ]+([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}).*(|\n([^]+))$/.exec(c);
+						if ( a !== null ) { vtt_lst.push(new myque(vtt_lst.length,s2t(a[1]),s2t(a[2]),a[3])); }
 					});
 				}
 				else { alert('VTT形式ではありません。'); }
