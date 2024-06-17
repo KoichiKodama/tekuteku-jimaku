@@ -2,7 +2,7 @@
 <html lang='ja'>
 <head>
 	<meta charset='UTF-8'>
-	<title>時刻合わせ 2024-06-16</title>
+	<title>時刻合わせ 2024-06-17</title>
 	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
 	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
 </head>
@@ -401,6 +401,15 @@ $(document).ready( function(){
 });
 
 const bs_warning = 'text-warning-emphasis bg-warning-subtle border border-warning-subtle';
+function scroll_table_subtitle(i) {
+	let d = $('#div-subtitle');
+	let t = $('#table-subtitle > tbody');
+	let r = t.find('tr').has('.cue-button[value="'+i+'"]');
+	let r0 = Math.floor(t.position().top+r.position().top);
+	let r1 = Math.ceil(r0+r.height());
+	if ( r0 < d.scrollTop() ) { d.scrollTop(r0) }
+	if ( r1 > d.scrollTop()+d.height() ) { d.scrollTop(Math.max(0,r1-d.height())); }
+}
 
 function video_control_mp4() {
 	var video = null;
@@ -428,9 +437,8 @@ function video_control_mp4() {
 				let c = vtt_lst[i];
 				if ( c.endTime <= current_time ) { continue; }
 				if ( c.startTime < current_time ) { text = ( text.length == 0 ? c.text : text+'\n'+c.text ); }
-				let o = $('#table-subtitle button[value="'+i+'"]');
-				o.get(0).scrollIntoView({behavior:"instant",block:"center"});
-				o.parent().siblings().find('textarea').addClass(bs_warning);
+				scroll_table_subtitle(i);
+				$('#table-subtitle tr').has('.cue-button[value="'+i+'"]').find('textarea').addClass(bs_warning);
 				m_current_vtt = i;
 				break;
 			}
@@ -484,9 +492,7 @@ function video_control_youtube() {
 				let c = vtt_lst[i];
 				if ( c.endTime <= m_current_time ) { continue; }
 				if ( c.startTime < m_current_time ) { text = ( text.length == 0 ? c.text : text+'\n'+c.text ); }
-				let o = $('#table-subtitle button[value="'+i+'"]');
-				o.get(0).scrollIntoView({behavior:"instant",block:"center"});
-				o.parent().siblings().find('textarea').addClass(bs_warning);
+				scroll_table_subtitle(i);
 				m_current_vtt = i;
 				break;
 			}
