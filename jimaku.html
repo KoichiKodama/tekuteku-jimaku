@@ -2,7 +2,7 @@
 <html lang='ja'>
 <head>
 	<meta charset='UTF-8'>
-	<title>時刻合わせ 2024-06-17</title>
+	<title>時刻合わせ 2024-06-26</title>
 	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
 	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
 </head>
@@ -29,14 +29,17 @@
 				<button class="btn btn-secondary" id="input-vtt">読込</button>
 				<button class="btn btn-secondary" id="save-vtt">保存</button>
 			</div>
-			<div class="btn-group m-1 mt-2 me-auto">
-				<button type="button" class="btn btn-outline-secondary" id="split-vtt">長文字幕分割</button>
-				<button type="button" class="btn btn-outline-secondary" id="remove-blank-vtt">空字幕削除</button>
+			<div class="btn-toolbox m-1 mt-2 me-auto">
+				<div class="btn-group me-auto">
+					<button type="button" class="btn btn-outline-secondary" id="split-vtt" data-bs-toggle="tooltip" title="長い字幕を分割" data-bs-placement="top">分割</button>
+					<button type="button" class="btn btn-outline-secondary" id="remove-blank-vtt" data-bs-toggle="tooltip" title="空字幕を削除">削除</button>
+					<button type="button" class="btn btn-outline-secondary" id="adjust-vtt-duration" data-bs-toggle="tooltip" title="字幕継続時間を調整">調整</button>
+				</div>
 				<a class="btn btn-outline-secondary" href="./toolbox.html" target="_blank" role="button">道具箱</a>
 				<button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#usage" data-backdrop="false">使い方</button>
 			</div>
 			<div class="m-1">
-				<div><input class="form-check-input m-2 xxx" type="checkbox" value="" id="save-tekutekutxt"><label class="form-check-label xxx">てくてく字幕テキストで保存する</label></div>
+				<div><input class="form-check-input m-2 xxx" type="checkbox" value="" id="save-tekutekutxt" checked><label class="form-check-label xxx">てくてく字幕テキストで保存する</label></div>
 				<div><input class="form-check-input m-2 xxx" type="checkbox" value="" id="time-shift" checked><label class="form-check-label xxx">時刻合わせで以降の字幕を平行移動する</label></div>
 				<div>
 					<input class="form-check-input m-2" type="checkbox" value="" id="readonly"><label class="form-check-label">見るだけ</label>
@@ -76,8 +79,16 @@
 				<li>テキスト修正は他に移動すると確定。移動前 Ctrl-Z で取消し</li>
 				<li>表示時刻左クリックで、動画の頭出し</li>
 				<li>黄色の表示時刻は、前の字幕とのかぶり警告</li>
-				<li>作業完了後、字幕ファイルを保存</li>
+				<li>作業完了後、字幕ファイルの保存を忘れない</li>
 			</ul>
+			<span class="badge bg-warning fs-5 w-100 text-center align-middle">ツールボタン</span>
+			<div class="col mx-auto align-self-center">
+			<table class="table table-sm">
+				<tr><td>分割</td><td>長文字幕を自動的に分割する</td></tr>
+				<tr><td>削除</td><td>空字幕を削除する</td></tr>
+				<tr><td>調整</td><td>字幕の継続時間を5秒を上限とし、次の字幕の直前まで延長する</td></tr>
+			</table>
+			</div>
 		</div>
 		<div class="modal-footer"><button type="button" class="btn btn-default" data-bs-dismiss="modal">閉じる</button></div>
 	</div>
@@ -194,9 +205,17 @@ function split_vtt() {
 		let a = my_split(c.text,25,30,'ja-JP');
 		let t = c.startTime;
 		let dt = (c.endTime-c.startTime)/a.length;
-		a.forEach((x)=>{ l.push(new myque(l.length,t,t+dt,x)); t+=dt; });
+		a.forEach((x)=>{ l.push(new myque(l.length,t,t+dt-0.01,x)); t+=dt; });
 	});
 	vtt_lst = l;
+}
+
+function adjust_vtt_duration() {
+	vtt_lst.forEach((c,i)=>{
+		if ( i == 0 ) return;
+		let c_prev = vtt_lst[i-1];
+		c_prev.endTime = ( c.startTime - c_prev.startTime < 5 ? c.startTime-0.01 : c_prev.startTime+5 );
+	});
 }
 
 function remove_blank_vtt() { vtt_lst = vtt_lst.filter((c)=>{ return c.text.length != 0; }); }
@@ -224,7 +243,6 @@ function update_vtt() {
 $(document).ready( function(){
 	set_theme($('#dark-mode').prop('checked') == true ? 'dark' : 'light');
 	$('#dark-mode').on('change',function(){ set_theme($('#dark-mode').prop('checked') == true ? 'dark' : 'light'); });
-
 	$('[data-bs-toggle="tooltip"]').map(function(i,e){ new bootstrap.Tooltip(e,{trigger:'hover'}); });
 	set_video_control();
 	adjust_video();
@@ -245,6 +263,7 @@ $(document).ready( function(){
 	$('#time-shift').on('change',()=>{ time_shift = $('#time-shift').prop('checked'); });
 	$('#split-vtt').on('click',()=>{ split_vtt(); update_vtt(); });
 	$('#remove-blank-vtt').on('click',()=>{ remove_blank_vtt(); update_vtt(); });
+	$('#adjust-vtt-duration').on('click',()=>{ adjust_vtt_duration(); update_vtt(); });
 
 	$('#input-vtt').on('click',function(){ $('#input-vtt-file').click(); });
 	$('#input-vtt-file').on('change',function(){
