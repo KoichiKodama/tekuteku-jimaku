@@ -2,7 +2,7 @@
 <html lang='ja'>
 <head>
 	<meta charset='UTF-8'>
-	<title>時刻合わせ 2024-06-26</title>
+	<title>時刻合わせ 2024-06-28</title>
 	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
 	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
 </head>
@@ -260,7 +260,7 @@ $(document).ready( function(){
 		}
 	});
 	$('#video-control-select').on('change',()=>{ set_video_control(); });
-	$('#time-shift').on('change',()=>{ time_shift = $('#time-shift').prop('checked'); });
+	$('#time-shift').on('change',()=>{ time_shift = $('#time-shift').prop('checked'); }).trigger('change');
 	$('#split-vtt').on('click',()=>{ split_vtt(); update_vtt(); });
 	$('#remove-blank-vtt').on('click',()=>{ remove_blank_vtt(); update_vtt(); });
 	$('#adjust-vtt-duration').on('click',()=>{ adjust_vtt_duration(); update_vtt(); });
@@ -315,7 +315,7 @@ $(document).ready( function(){
 	.on('click','.cue-button',function(){
 		var i = parseInt($(this).val());
 		var c = vtt_lst[i];
-		var dt = Math.max(0,video_control.current_time()-0.5)-c.startTime;
+		var dt = video_control.current_time()-c.startTime;
 		c.endTime += dt;
 		c.startTime += dt;
 		if ( time_shift == true ) { shift_time(i,dt); }
