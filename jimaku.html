@@ -2,7 +2,7 @@
 <html lang='ja'>
 <head>
 	<meta charset='UTF-8'>
-	<title>時刻合わせ 2024-06-28</title>
+	<title>時刻合わせ 2024-12-02</title>
 	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
 	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
 </head>
@@ -362,19 +362,23 @@ $(document).ready( function(){
 			vtt_lst.forEach((c,i)=>{ a.push(sprintf('%s --> %s %s\n',t2s(c.startTime),t2s(c.endTime),c.text.replace(/\n/g,'\t'))); });
 			b = new Blob(a,{type:'text/plain'});
 		}
-		const f = await window.showSaveFilePicker({suggestedName:name,types:[{accept:{'text/vtt':['.vtt']}}]});	// ファイル保存ダイアログを表示して FileSystemFileHandle オブジェクトを取得
-		const s = await f.createWritable();	// FileSystemWritableFileStream オブジェクトを取得
-		await s.write(b); // テキストデータをファイルに書き込む
-		await s.close(); // ファイルを閉じる
-//		旧来の手法
-//		const url = URL.createObjectURL(b);
-//		const e = document.createElement("a");
-//		document.body.appendChild(e);
-//		e.download = name;
-//		e.href = url;
-//		e.click();
-//		e.remove();
-//		URL.revokeObjectURL(url);
+		if ( typeof window.showSaveFilePicker === 'function' ) {
+			const f = await window.showSaveFilePicker({suggestedName:name,types:[{accept:{'text/vtt':['.vtt']}}]});	// ファイル保存ダイアログを表示して FileSystemFileHandle オブジェクトを取得
+			const s = await f.createWritable();	// FileSystemWritableFileStream オブジェクトを取得
+			await s.write(b); // テキストデータをファイルに書き込む
+			await s.close(); // ファイルを閉じる
+		}
+		else {
+			// Safari は window.showSaveFilePicker をサポートしていない
+			const url = URL.createObjectURL(b);
+			const e = document.createElement("a");
+			document.body.appendChild(e);
+			e.download = name;
+			e.href = url;
+			e.click();
+			e.remove();
+			URL.revokeObjectURL(url);
+		}
 	});
 
 	$('#video-seek').on('input',function(){ video_control.seek(this.valueAsNumber); });	// this は function() と ()=> で違う。
