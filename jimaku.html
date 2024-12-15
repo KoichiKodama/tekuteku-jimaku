@@ -2,7 +2,7 @@
 <html lang='ja'>
 <head>
 	<meta charset='UTF-8'>
-	<title>時刻合わせ 2024-12-02</title>
+	<title>時刻合わせ 2024-12-16</title>
 	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
 	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
 </head>
@@ -40,7 +40,7 @@
 			</div>
 			<div class="m-1">
 				<div><input class="form-check-input m-2 xxx" type="checkbox" value="" id="save-tekutekutxt" checked><label class="form-check-label xxx">てくてく字幕テキストで保存する</label></div>
-				<div><input class="form-check-input m-2 xxx" type="checkbox" value="" id="time-shift" checked><label class="form-check-label xxx">時刻合わせで以降の字幕を平行移動する</label></div>
+				<div><input class="form-check-input m-2 xxx" type="checkbox" value="" id="time-shift"><label class="form-check-label xxx">時刻合わせで以降の字幕も一緒にズラす</label></div>
 				<div>
 					<input class="form-check-input m-2" type="checkbox" value="" id="readonly"><label class="form-check-label">見るだけ</label>
 					<input class="form-check-input m-2 xxx" type="checkbox" value="" id="dark-mode" checked><label class="form-control-label xxx">ダークモード</label>
@@ -76,7 +76,7 @@
 			<ul>
 				<li>字幕を表示する位置で動画を停止し、行頭ボタンで表示時刻設定</li>
 				<li>継続時間は秒単位の値を入力</li>
-				<li>テキスト修正は他に移動すると確定。移動前 Ctrl-Z で取消し</li>
+				<li>テキスト修正は欄外クリックで確定。取消はクリック前に Ctrl-Z</li>
 				<li>表示時刻左クリックで、動画の頭出し</li>
 				<li>黄色の表示時刻は、前の字幕とのかぶり警告</li>
 				<li>作業完了後、字幕ファイルの保存を忘れない</li>
@@ -86,7 +86,7 @@
 			<table class="table table-sm">
 				<tr><td>分割</td><td>長文字幕を自動的に分割する</td></tr>
 				<tr><td>削除</td><td>空字幕を削除する</td></tr>
-				<tr><td>調整</td><td>字幕の継続時間を5秒を上限とし、次の字幕の直前まで延長する</td></tr>
+				<tr><td>調整</td><td>字幕間の空白を無くすが、<br>各字幕の継続時間も上限値（通常5秒）迄とする</td></tr>
 			</table>
 			</div>
 		</div>
@@ -100,6 +100,19 @@
 <script src='./tools/sprintf-1.1.2/sprintf.min.js'></script>
 <script type='text/javascript'>
 'use strict';
+
+// アプリ内部で使用しているパラメータ
+// (1) てくてく字幕形式の読込
+var default_cue_duration = 2; // 時刻指定無い際の字幕継続時間（字幕挿入にも流用）
+var default_cue_blank = 1; // 時刻指定無い際の字幕間隔
+// (2) 時刻設定ボタン
+var cue_time_offset = 0; // 開始時刻をビデオ停止時刻より指定値だけ戻す
+// (3) 自動分割ボタン
+var auto_split_min_length = 25; // 字幕分割の最小文字数
+var auto_split_max_length = 30; // 字幕分割の最大文字数
+// (4) 調整ボタン
+var auto_adjust_max_duration = 5; // 字幕継続時間の最大値
+var auto_adjust_min_blank = 0.01; // 字幕間隔の最小値(自動分割にも流用)
 
 function set_theme(theme) { document.documentElement.setAttribute('data-bs-theme',theme); }
 
@@ -122,8 +135,6 @@ var vtt_lst = [];
 var vtt_src = null;
 var vtt_height = 0;
 var time_shift = false;
-var default_cue_duration = 2;
-var default_cue_blank = 1;
 
 function t2s(t) {
 	if ( t === NaN ) return "--:--:--";
@@ -202,10 +213,10 @@ function split_vtt() {
 	let l = [];
 	vtt_lst.forEach((c,i)=>{
 		if ( c.text.length < 30 ) { l.push(c); return; }
-		let a = my_split(c.text,25,30,'ja-JP');
+		let a = my_split(c.text,auto_split_min_length,auto_split_max_length,'ja-JP');
 		let t = c.startTime;
 		let dt = (c.endTime-c.startTime)/a.length;
-		a.forEach((x)=>{ l.push(new myque(l.length,t,t+dt-0.01,x)); t+=dt; });
+		a.forEach((x)=>{ l.push(new myque(l.length,t,t+dt-auto_adjust_min_blank,x)); t+=dt; });
 	});
 	vtt_lst = l;
 }
@@ -214,7 +225,7 @@ function adjust_vtt_duration() {
 	vtt_lst.forEach((c,i)=>{
 		if ( i == 0 ) return;
 		let c_prev = vtt_lst[i-1];
-		c_prev.endTime = ( c.startTime - c_prev.startTime < 5 ? c.startTime-0.01 : c_prev.startTime+5 );
+		c_prev.endTime = ( c.startTime - c_prev.startTime < auto_adjust_max_duration ? c.startTime-auto_adjust_min_blank : c_prev.startTime+auto_adjust_max_duration );
 	});
 }
 
@@ -280,7 +291,7 @@ $(document).ready( function(){
 					result.split(/\n{2,}/).forEach((c,i)=>{
 						if ( i == 0 ) return; // WEBVTT の行はスキップする。
 						var a = /([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ ]+-->[ ]+([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}).*(|\n([^]+))$/.exec(c);
-						if ( a !== null ) { vtt_lst.push(new myque(vtt_lst.length,s2t(a[1]),s2t(a[2]),my_split(a[3],25,30,'ja-JP').join('\n'))); }
+						if ( a !== null ) { vtt_lst.push(new myque(vtt_lst.length,s2t(a[1]),s2t(a[2]),my_split(a[3],auto_split_min_length,auto_split_max_length,'ja-JP').join('\n'))); }
 					});
 				}
 				else {
@@ -293,11 +304,11 @@ $(document).ready( function(){
 						if ( c == "" ) return;
 						var a = /([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ ]+-->[ ]+([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ \t]+([^]+)$/.exec(c);
 						if ( a == null ) {
-							vtt_lst.push(new myque(vtt_lst.length,t,t+default_cue_duration,my_split(c,25,30,'ja-JP').join('\n')));
+							vtt_lst.push(new myque(vtt_lst.length,t,t+default_cue_duration,my_split(c,auto_split_min_length,auto_split_max_length,'ja-JP').join('\n')));
 							t += (default_cue_duration+default_cue_blank);
 						}
 						else {
-							if ( a[3] != "" ) { vtt_lst.push(new myque(vtt_lst.length,s2t(a[1]),s2t(a[2]),my_split(a[3],25,30,'ja-JP').join('\n'))); }
+							if ( a[3] != "" ) { vtt_lst.push(new myque(vtt_lst.length,s2t(a[1]),s2t(a[2]),my_split(a[3],auto_split_min_length,auto_split_max_length,'ja-JP').join('\n'))); }
 							t = s2t(a[2])+default_cue_blank;
 						}
 					});
@@ -315,7 +326,7 @@ $(document).ready( function(){
 	.on('click','.cue-button',function(){
 		var i = parseInt($(this).val());
 		var c = vtt_lst[i];
-		var dt = video_control.current_time()-c.startTime;
+		var dt = (video_control.current_time()-cue_time_offset)-c.startTime;
 		c.endTime += dt;
 		c.startTime += dt;
 		if ( time_shift == true ) { shift_time(i,dt); }
@@ -325,7 +336,7 @@ $(document).ready( function(){
 		// 字幕を後ろに挿入
 		var i = parseInt($(this).val());
 		var c = vtt_lst[i];
-		vtt_lst.splice(i+1,0,new myque(i+1,c.startTime,c.startTime+1,''));
+		vtt_lst.splice(i+1,0,new myque(i+1,c.startTime,c.startTime+default_cue_duration,''));
 		vtt_lst.forEach((c,i)=>{ c.i = i; });
 		update_vtt();
 	})
@@ -350,20 +361,23 @@ $(document).ready( function(){
 	$('#save-vtt').click(async function(){
 		if ( vtt_name == '' ) { alert('字幕ファイルをロードしていません。'); return; }
 		let b = undefined;
+		let t = undefined;
 		if ( $('#save-tekutekutxt').prop('checked') == false ) {
 			var name = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.編集後.vtt');
 			var a = ["WEBVTT\n\n"];
 			vtt_lst.forEach(function(c,i){ a.push(sprintf('%s --> %s\n%s\n\n',t2s(c.startTime),t2s(c.endTime),c.text)); });
 			b = new Blob(a,{type:'text/vtt'});
+			t = {'text/vtt':['.vtt']};
 		}
 		else {
 			var name = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.編集後.txt');
 			var a = [];
 			vtt_lst.forEach((c,i)=>{ a.push(sprintf('%s --> %s %s\n',t2s(c.startTime),t2s(c.endTime),c.text.replace(/\n/g,'\t'))); });
 			b = new Blob(a,{type:'text/plain'});
+			t = {'text/txt':['.txt']};
 		}
 		if ( typeof window.showSaveFilePicker === 'function' ) {
-			const f = await window.showSaveFilePicker({suggestedName:name,types:[{accept:{'text/vtt':['.vtt']}}]});	// ファイル保存ダイアログを表示して FileSystemFileHandle オブジェクトを取得
+			const f = await window.showSaveFilePicker({suggestedName:name,types:[{accept:t}]});	// ファイル保存ダイアログを表示して FileSystemFileHandle オブジェクトを取得
 			const s = await f.createWritable();	// FileSystemWritableFileStream オブジェクトを取得
 			await s.write(b); // テキストデータをファイルに書き込む
 			await s.close(); // ファイルを閉じる
@@ -437,12 +451,11 @@ function scroll_table_subtitle(i) {
 function video_control_mp4() {
 	var video = null;
 	var video_name = 'none';
-	var m_current_vtt = 0;
 
 	function video_id() { return video_name; }
 	function play() { video.play(); }
 	function pause() { video.pause(); }
-	function seek(t) { if (!video.paused) { video.pause(); } video.currentTime = t; m_current_vtt = 0; $('#table-subtitle textarea.bg-warning-subtle').removeClass(bs_warning); }
+	function seek(t) { if (!video.paused) { video.pause(); } video.currentTime = t; $('#table-subtitle textarea.bg-warning-subtle').removeClass(bs_warning); }
 	function is_paused() { return ( video.paused ? true : false ); }
 	function duration() { return video.duration; }
 	function current_time() { return video.currentTime; }
@@ -456,14 +469,13 @@ function video_control_mp4() {
 			let current_time = video.currentTime;
 			let text = "";
 			$('#table-subtitle textarea.bg-warning-subtle').removeClass(bs_warning);
-			for (let i=m_current_vtt;i<vtt_lst.length;i++) {
+			for (let i=0;i<vtt_lst.length;i++) {
+				// vtt_lst は c.startTime でソートしている。
 				let c = vtt_lst[i];
-				if ( c.endTime <= current_time ) { continue; }
-				if ( c.startTime < current_time ) { text = ( text.length == 0 ? c.text : text+'\n'+c.text ); }
+				if ( current_time < c.startTime || current_time > c.endTime ) { continue; }
+				text = ( text.length == 0 ? c.text : text+'\n'+c.text );
 				scroll_table_subtitle(i);
 				$('#table-subtitle tr').has('.cue-button[value="'+i+'"]').find('textarea').addClass(bs_warning);
-				m_current_vtt = i;
-				break;
 			}
 			$('#text-subtitle').val(text);
 		});
@@ -500,7 +512,6 @@ function video_control_youtube() {
 	var m_timer;
 	var m_current_time = 0;
 	var m_duration = 0;
-	var m_current_vtt = 0;
 
 	function video_id() { return m_id; }
 	function play(){
@@ -511,13 +522,13 @@ function video_control_youtube() {
 			m_args.on_timechange();
 			let text = "";
 			$('#table-subtitle textarea.bg-warning-subtle').removeClass(bs_warning);
-			for (let i=m_current_vtt;i<vtt_lst.length;i++) {
+			for (let i=0;i<vtt_lst.length;i++) {
+				// vtt_lst は c.startTime でソートしている。
 				let c = vtt_lst[i];
-				if ( c.endTime <= m_current_time ) { continue; }
-				if ( c.startTime < m_current_time ) { text = ( text.length == 0 ? c.text : text+'\n'+c.text ); }
+				if ( m_current_time < c.startTime || m_current_time > c.endTime ) { continue; }
+				text = ( text.length == 0 ? c.text : text+'\n'+c.text );
 				scroll_table_subtitle(i);
-				m_current_vtt = i;
-				break;
+				$('#table-subtitle tr').has('.cue-button[value="'+i+'"]').find('textarea').addClass(bs_warning);
 			}
 			$('#text-subtitle').val(text);
 		},500);
@@ -532,7 +543,6 @@ function video_control_youtube() {
 		m_player.seekTo(t,true);
 		m_current_time = t;
 		m_args.on_timechange();
-		m_current_vtt = 0;
 		$('#table-subtitle textarea.bg-warning-subtle').removeClass(bs_warning);
 	}
 	function is_paused(){ return ( m_player.getPlayerState() == YT.PlayerState.PLAYING ? false : true ); }
