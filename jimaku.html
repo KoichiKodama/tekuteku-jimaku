@@ -2,7 +2,7 @@
 <html lang='ja'>
 <head>
 	<meta charset='UTF-8'>
-	<title>時刻合わせ 2024-12-16</title>
+	<title>時刻合わせ 2025-01-07</title>
 	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
 	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
 </head>
@@ -115,6 +115,7 @@ var auto_adjust_max_duration = 5; // 字幕継続時間の最大値
 var auto_adjust_min_blank = 0.01; // 字幕間隔の最小値(自動分割にも流用)
 
 function set_theme(theme) { document.documentElement.setAttribute('data-bs-theme',theme); }
+function get_folder(path) { return path.split('/').slice(0,-1).join('/'); }
 
 class myque {
 	i;
@@ -435,6 +436,19 @@ $(document).ready( function(){
 		}
 		video_control.setup_player({ id:'video', on_load:on_load, on_play:on_play, on_pause:on_pause, on_timechange:on_timechange });
 	}
+
+	const args = new URLSearchParams(location.search);
+	if ( args.has('auto') ) {
+		$('#readonly').prop('checked',true);
+		$('#readonly').trigger('change');
+		let script = document.createElement("script");
+		script.src = args.get('auto');
+		script.onload = function(){
+			video_control.load(sprintf('%s/%s',get_folder(script.src),mp4_file_name));
+			update_vtt();
+		};
+		document.documentElement.firstChild.appendChild(script);
+	}
 });
 
 const bs_warning = 'text-warning-emphasis bg-warning-subtle border border-warning-subtle';
@@ -477,19 +491,25 @@ function video_control_mp4() {
 				scroll_table_subtitle(i);
 				$('#table-subtitle tr').has('.cue-button[value="'+i+'"]').find('textarea').addClass(bs_warning);
 			}
-			$('#text-subtitle').val(text);
+			$('#text-subtitle').prop('rows',Math.max(3,count_rows(text))).val(text);
 		});
 	}
-	function load(){
-		$('#input-mp4-file').on('change',function(){
-			if ( this.files.length == 1 ) {
-				var blob = this.files[0];
-				video.src = window.URL.createObjectURL(blob);
-				video_name = blob.name;
-				$('#input-mp4-file').val('');
-			}
-		});
-		$('#input-mp4-file').click();
+	function load( name ){
+		if ( name !== null ) {
+			video.src = name;
+			video_name = name;
+		}
+		else {
+			$('#input-mp4-file').on('change',function(){
+				if ( this.files.length == 1 ) {
+					var blob = this.files[0];
+					video.src = window.URL.createObjectURL(blob);
+					video_name = blob.name;
+					$('#input-mp4-file').val('');
+				}
+			});
+			$('#input-mp4-file').click();
+		}
 	}
 
 	return {
@@ -530,7 +550,7 @@ function video_control_youtube() {
 				scroll_table_subtitle(i);
 				$('#table-subtitle tr').has('.cue-button[value="'+i+'"]').find('textarea').addClass(bs_warning);
 			}
-			$('#text-subtitle').val(text);
+			$('#text-subtitle').prop('rows',Math.max(3,count_rows(text))).val(text);
 		},500);
 	}
 	function pause(){

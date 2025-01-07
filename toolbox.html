@@ -2,7 +2,7 @@
 <html lang='ja' data-bs-theme="dark">
 <head>
 	<meta charset='UTF-8'>
-	<title>字幕作業の道具箱</title>
+	<title>字幕作業の道具箱 2025-01-07</title>
 	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
 	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
 </head>
@@ -12,7 +12,6 @@
 	<h4 class="text-center">道具箱</h4>
 	<div class="d-grid mx-auto">
 		<button class="btn btn-secondary" id="vtt-2-tekuteku">VTT ファイルを、てくてく字幕テキストに変換する</button>
-		<input type="file" class="form-control" id="input-vtt-file" style="display:none;" />
 	</div>
 	<div class="card"><div class="card-body">
 		<h5 class="card-title">てくてく仕様の字幕テキストの書式</h5>
@@ -22,8 +21,12 @@
 		<li>各字幕の先頭に時刻情報があっても良い</li>
 		</ul>
 	</div></div>
+	<div class="d-grid mx-auto">
+		<button class="btn btn-secondary" id="vtt-2-js">お試し</button>
+	</div>
 </div>
 </div>
+<input type="file" class="form-control" id="input-vtt-file" style="display:none;" multiple />
 
 <script src='./tools/jquery-3.6.0/jquery-3.6.0.min.js'></script>
 <script src='./tools/bootstrap-5.3.0/js/bootstrap.bundle.min.js'></script>
@@ -46,6 +49,37 @@ function s2t(s) {
 	return parseFloat(s.substr(0,2))*3600+parseFloat(s.substr(3,2))*60+parseFloat(s.substr(6,2))+0.001*parseFloat(s.substr(9,3));
 }
 
+function my_split(s,min_length,max_length,lang) {
+	var b = [];
+	if ( lang == 'ja-JP' ) {
+		// [\u3041-\u3096] : ひらがな（サロゲートペアは除く）
+		// [\u3041-\u3096]([\u3400-\u9FFF\uF900-\uFAFF]) : ひらがな＋漢字
+		// Chrome の音声認識は文の間に半角スペースが入る。
+		//
+		s.split(/\n/).forEach((y)=>{
+			for (let x=y;;) {
+				if ( x.length <= min_length ) { if ( x.length != 0 ) { b.push(x); } break; }
+				let i = x.substring(min_length,max_length+1).search(/([ .,。、]|[\u3041-\u3096][\u3400-\u9FFF\uF900-\uFAFF])/);
+				let j = ( i == -1 ? max_length : min_length+i+1 );
+				b.push(x.substring(0,j));
+				x = x.substring(j);
+			}
+		});
+	}
+	else {
+		s.split(/\n/).forEach((y)=>{
+			for (let x=y;;) {
+				if ( x.length <= min_length ) { if ( x.length != 0 ) { b.push(x); } break; }
+				let i = x.substring(min_length,max_length+1).search(/[ .,:;]/);
+				let j = ( i == -1 ? max_length : min_length+i+1 );
+				b.push(x.substring(0,j));
+				x = x.substring(j);
+			}
+		});
+	}
+	return b;
+}
+
 class myque {
 	i;
 	startTime;
@@ -60,40 +94,68 @@ class myque {
 };
 
 var vtt_lst = [];
+var job = 0;
 
 $(document).ready( function(){
-	$('#vtt-2-tekuteku').on('click',function(){ $('#input-vtt-file').click(); });
-	$('#input-vtt-file').on('change',function(){
-		if ( this.files.length == 1 ) {
-			var blob = this.files[0];
-			let vtt_name = blob.name;
-			var reader = new FileReader();
-			reader.readAsText(blob);
-			reader.onload = async function(){
-				if ( /^WEBVTT/.test(reader.result) == true ) {
-					vtt_lst = [];
-					reader.result.replace(/\r\n/g,'\n').split(/\n\n/).forEach((c)=>{
-						var a = /([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ ]+-->[ ]+([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}).*(|\n([^]+))$/.exec(c);
-						if ( a !== null ) { vtt_lst.push(new myque(vtt_lst.length,s2t(a[1]),s2t(a[2]),a[3])); }
+	$('#vtt-2-tekuteku').on('click',function(){ job=0; $('#input-vtt-file').click(); });
+	$('#vtt-2-js').on('click',function(){ job=1; $('#input-vtt-file').click(); });
+	$('#input-vtt-file').on('change',async function(){
+		for (let i=0;i<this.files.length;i++) {
+			let file = this.files[i];
+			let vtt_name = file.name;
+			let reader = new FileReader();
+			reader.readAsText(file);
+			await new Promise( resolve => reader.onload = () => resolve() );
+			// BOM 削除と改行コード統一
+			let result = reader.result.replace(/^\ufeff/,"").replace(/\r\n/g,'\n');
+			if ( /^WEBVTT/.test(result) == true ) {
+				vtt_lst = [];
+				result.split(/\n{2,}/).forEach((c)=>{
+					var a = /([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ ]+-->[ ]+([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}).*(|\n([^]+))$/.exec(c);
+					if ( a !== null ) { vtt_lst.push(new myque(vtt_lst.length,s2t(a[1]),s2t(a[2]),a[3])); }
+				});
+			}
+			else { alert('VTT形式ではありません。'); }
+
+			let a = [];
+			let o_fname;
+			switch (job) {
+			case 0:
+				o_fname = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.tekuteku.txt');
+				vtt_lst.forEach(function(c,i){ a.push(sprintf('%s --> %s %s\n',t2s(c.startTime),t2s(c.endTime),c.text.replace(/\n/g,'\t'))); });
+				break;
+
+			case 1:
+				const split_min_length = 50; // 字幕分割の最小文字数
+				const split_max_length = 60; // 字幕分割の最大文字数
+				o_fname = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.js');
+				let mp4 = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.mp4');
+				a.push(sprintf('mp4_file_name = "%s";\n',mp4));
+				if ( vtt_lst.length != 0 ) {
+					a.push('vtt_lst = [];\n');
+					vtt_lst.forEach(function(c,i){
+						let text = c.text.replace(/^\n/,''); // 先頭に改行コードが残る問題への対症療法
+						let s = sprintf('vtt_lst.push(new myque(%d,%f,%f,"%s"));\n',c.i,c.startTime,c.endTime,my_split(text,split_min_length,split_max_length,'ja-JP').join('\\n'));
+						a.push(s);
 					});
 				}
-				else { alert('VTT形式ではありません。'); }
-				$('#input-vtt-file').val('');
+				break;
+			}
 
-				let tekuteku_name = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.tekuteku.txt');
-				var a = [];
-				vtt_lst.forEach(function(c,i){ a.push(sprintf('%s --> %s %s\n',t2s(c.startTime),t2s(c.endTime),c.text.replace(/\n/g,'\t'))); });
-				var blob = new Blob(a,{type:'text/plain'});
-				const x = document.createElement("a");
-				document.body.appendChild(x);
-				x.download = tekuteku_name;
-				x.href = URL.createObjectURL(blob);
-				x.click();
-				x.remove();
-				URL.revokeObjectURL(x.href);
-			};
+			let blob = new Blob(a,{type:'text/plain'});
+			const x = document.createElement("a");
+			document.body.appendChild(x);
+			x.download = o_fname;
+			x.href = URL.createObjectURL(blob);
+			x.click();
+			x.remove();
+			URL.revokeObjectURL(x.href);
+			console.log(o_fname);
+
+			await new Promise( (resolve) => setTimeout(resolve,5000) ); // 同時ダウンロード数を制限するため
 		}
-	});
+		$('#input-vtt-file').val('');
+});
 });
 </script>
 </body>
