@@ -2,7 +2,7 @@
 <html lang='ja' data-bs-theme="dark">
 <head>
 	<meta charset='UTF-8'>
-	<title>字幕作業の道具箱 2025-01-07</title>
+	<title>字幕作業の道具箱 2025-01-08</title>
 	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
 	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
 </head>
@@ -112,7 +112,9 @@ $(document).ready( function(){
 				vtt_lst = [];
 				result.split(/\n{2,}/).forEach((c)=>{
 					var a = /([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ ]+-->[ ]+([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}).*(|\n([^]+))$/.exec(c);
-					if ( a !== null ) { vtt_lst.push(new myque(vtt_lst.length,s2t(a[1]),s2t(a[2]),a[3])); }
+					if ( a === null ) return; // WEBVTT の行もスキップできる。
+					let text = ( a[3] == '' ? '' : a[4] );
+					vtt_lst.push(new myque(vtt_lst.length,s2t(a[1]),s2t(a[2]),text));
 				});
 			}
 			else { alert('VTT形式ではありません。'); }
@@ -133,10 +135,8 @@ $(document).ready( function(){
 				a.push(sprintf('mp4_file_name = "%s";\n',mp4));
 				if ( vtt_lst.length != 0 ) {
 					a.push('vtt_lst = [];\n');
-					vtt_lst.forEach(function(c,i){
-						let text = c.text.replace(/^\n/,''); // 先頭に改行コードが残る問題への対症療法
-						let s = sprintf('vtt_lst.push(new myque(%d,%f,%f,"%s"));\n',c.i,c.startTime,c.endTime,my_split(text,split_min_length,split_max_length,'ja-JP').join('\\n'));
-						a.push(s);
+					vtt_lst.forEach(function(c){
+						a.push(sprintf('vtt_lst.push(new myque(%d,%f,%f,"%s"));\n',c.i,c.startTime,c.endTime,my_split(c.text,split_min_length,split_max_length,'ja-JP').join('\\n')));
 					});
 				}
 				break;

@@ -2,7 +2,7 @@
 <html lang='ja'>
 <head>
 	<meta charset='UTF-8'>
-	<title>時刻合わせ 2025-01-07</title>
+	<title>時刻合わせ 2025-01-08</title>
 	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
 	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
 </head>
@@ -290,9 +290,10 @@ $(document).ready( function(){
 				if ( /^WEBVTT/.test(result) == true ) {
 					vtt_lst = [];
 					result.split(/\n{2,}/).forEach((c,i)=>{
-						if ( i == 0 ) return; // WEBVTT の行はスキップする。
-						var a = /([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ ]+-->[ ]+([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}).*(|\n([^]+))$/.exec(c);
-						if ( a !== null ) { vtt_lst.push(new myque(vtt_lst.length,s2t(a[1]),s2t(a[2]),my_split(a[3],auto_split_min_length,auto_split_max_length,'ja-JP').join('\n'))); }
+						var a = /([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ ]+-->[ ]+([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3}).*(|\n([^]*))$/.exec(c);
+						if ( a === null ) return; // WEBVTT の行もスキップできる。
+						let text = ( a[3] == '' ? '' : a[4] );
+						vtt_lst.push(new myque(vtt_lst.length,s2t(a[1]),s2t(a[2]),my_split(text,auto_split_min_length,auto_split_max_length,'ja-JP').join('\n')));
 					});
 				}
 				else {
@@ -301,15 +302,15 @@ $(document).ready( function(){
 					// 各字幕の先頭に時刻情報があっても良い。
 					let t = 0;
 					vtt_lst = [];
-					result.replace(/\r\n/g,'\n').replace(/\n/g,'\n\n').replace(/\t+/g,'\n').split(/\n\n/).forEach((c)=>{
+					result.replace(/\n/g,'\n\n').replace(/\t+/g,'\n').split(/\n\n/).forEach((c)=>{
 						if ( c == "" ) return;
-						var a = /([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ ]+-->[ ]+([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ \t]+([^]+)$/.exec(c);
+						var a = /([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ ]+-->[ ]+([0-9]{2}:[0-9]{2}:[0-9]{2}.[0-9]{3})[ \t]+([^]*)$/.exec(c); // 空文字の a[3] もあり得る
 						if ( a == null ) {
 							vtt_lst.push(new myque(vtt_lst.length,t,t+default_cue_duration,my_split(c,auto_split_min_length,auto_split_max_length,'ja-JP').join('\n')));
 							t += (default_cue_duration+default_cue_blank);
 						}
 						else {
-							if ( a[3] != "" ) { vtt_lst.push(new myque(vtt_lst.length,s2t(a[1]),s2t(a[2]),my_split(a[3],auto_split_min_length,auto_split_max_length,'ja-JP').join('\n'))); }
+							vtt_lst.push(new myque(vtt_lst.length,s2t(a[1]),s2t(a[2]),my_split(a[3],auto_split_min_length,auto_split_max_length,'ja-JP').join('\n')));
 							t = s2t(a[2])+default_cue_blank;
 						}
 					});
