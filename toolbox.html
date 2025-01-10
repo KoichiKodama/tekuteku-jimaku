@@ -2,7 +2,7 @@
 <html lang='ja' data-bs-theme="dark">
 <head>
 	<meta charset='UTF-8'>
-	<title>字幕作業の道具箱 2025-01-08</title>
+	<title>字幕作業の道具箱 2025-01-10</title>
 	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
 	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
 </head>
@@ -132,7 +132,7 @@ $(document).ready( function(){
 				const split_max_length = 60; // 字幕分割の最大文字数
 				o_fname = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.js');
 				let mp4 = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.mp4');
-				a.push(sprintf('mp4_file_name = "%s";\n',mp4));
+				a.push(sprintf('mp4_file_name = encodeURI("%s");\n',mp4));
 				if ( vtt_lst.length != 0 ) {
 					a.push('vtt_lst = [];\n');
 					vtt_lst.forEach(function(c){
