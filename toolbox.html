@@ -2,7 +2,7 @@
 <html lang='ja' data-bs-theme="dark">
 <head>
 	<meta charset='UTF-8'>
-	<title>字幕作業の道具箱 2025-01-10</title>
+	<title>字幕作業の道具箱 2025-04-25</title>
 	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
 	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
 </head>
@@ -11,9 +11,10 @@
 <div class="col mx-auto mt-5" style="width:380px;">
 	<h4 class="text-center">道具箱</h4>
 	<div class="d-grid mx-auto">
-		<button class="btn btn-secondary" id="vtt-2-tekuteku">VTT ファイルを、てくてく字幕テキストに変換する</button>
+		<button class="btn btn-secondary m-2" id="vtt-2-tekuteku">VTT ファイルを、てくてく字幕テキストに変換する</button>
+		<button class="btn btn-secondary m-2" id="vtt-2-srt">VTT ファイルを、SRT ファイルに変換する</button>
 	</div>
-	<div class="card"><div class="card-body">
+	<div class="card m-2"><div class="card-body">
 		<h5 class="card-title">てくてく仕様の字幕テキストの書式</h5>
 		<ul class="card-text">
 		<li>各字幕1行
@@ -22,7 +23,7 @@
 		</ul>
 	</div></div>
 	<div class="d-grid mx-auto">
-		<button class="btn btn-secondary" id="vtt-2-js">お試し</button>
+		<button class="btn btn-secondary m-2" id="vtt-2-js">javascript 埋め込み</button>
 	</div>
 </div>
 </div>
@@ -99,6 +100,7 @@ var job = 0;
 $(document).ready( function(){
 	$('#vtt-2-tekuteku').on('click',function(){ job=0; $('#input-vtt-file').click(); });
 	$('#vtt-2-js').on('click',function(){ job=1; $('#input-vtt-file').click(); });
+	$('#vtt-2-srt').on('click',function(){ job=2; $('#input-vtt-file').click(); });
 	$('#input-vtt-file').on('change',async function(){
 		for (let i=0;i<this.files.length;i++) {
 			let file = this.files[i];
@@ -140,6 +142,10 @@ $(document).ready( function(){
 					});
 				}
 				break;
+			case 2:
+				o_fname = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.srt');
+				vtt_lst.forEach(function(c,i){ a.push(sprintf('%d\n%s --> %s\n%s\n\n',i+1,t2s(c.startTime),t2s(c.endTime),c.text)); });
+				break;
 			}
 
 			let blob = new Blob(a,{type:'text/plain'});
@@ -150,8 +156,6 @@ $(document).ready( function(){
 			x.click();
 			x.remove();
 			URL.revokeObjectURL(x.href);
-			console.log(o_fname);
-
 			await new Promise( (resolve) => setTimeout(resolve,5000) ); // 同時ダウンロード数を制限するため
 		}
 		$('#input-vtt-file').val('');

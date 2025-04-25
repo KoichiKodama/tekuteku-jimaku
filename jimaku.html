@@ -2,7 +2,7 @@
 <html lang='ja'>
 <head>
 	<meta charset='UTF-8'>
-	<title>時刻合わせ 2025-04-21</title>
+	<title>時刻合わせ 2025-04-23</title>
 	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
 	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
 </head>
@@ -364,7 +364,8 @@ $(document).ready( function(){
 		if ( vtt_name == '' ) { alert('字幕ファイルをロードしていません。'); return; }
 		let b = undefined;
 		let t = undefined;
-		vtt_lst.forEach(function(c,i){ c.text = c.text.replace(/[ 　\t]*\n/g,""); }); // 全半角スペースとタブだけの行を削除
+		vtt_lst.forEach(function(c,i){ c.text = c.text.split("\n").filter((x)=>!/^[ 　\t]*$/.test(x)).join('\n'); }); // 全半角スペースとタブだけの行を削除
+		update_vtt();
 		if ( $('#save-tekutekutxt').prop('checked') == false ) {
 			var name = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.編集後.vtt');
 			var a = ["WEBVTT\n\n"];
