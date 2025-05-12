@@ -2,7 +2,7 @@
 <html lang='ja'>
 <head>
 	<meta charset='UTF-8'>
-	<title>時刻合わせ 2025-04-23</title>
+	<title>時刻合わせ 2025-05-12</title>
 	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
 	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
 </head>
@@ -16,7 +16,7 @@
 			</select></div>
 			<div class="ratio ratio-16x9 m-1" id="video-screen"></div>
 			<div class="input-group m-1">
-			<textarea id="text-subtitle" class="cue-text form-control text-center" rows="3" style="resize:none; overflow:auto;" readonly></textarea>
+			<textarea id="text-subtitle" class="form-control text-center" rows="3" style="resize:none; overflow:auto;" readonly></textarea>
 			</div>
 			<div class="input-group m-1 xxx" id="video-id-div">
 				<span class="input-group-text btn-secondary">動画</span>
@@ -113,6 +113,8 @@ var auto_split_max_length = 30; // 字幕分割の最大文字数
 // (4) 調整ボタン
 var auto_adjust_max_duration = 5; // 字幕継続時間の最大値
 var auto_adjust_min_blank = 0.01; // 字幕間隔の最小値(自動分割にも流用)
+// (5) 字幕文字欄に表示するガイド位置
+var max_jimaku_char_length = 25;
 
 function set_theme(theme) { document.documentElement.setAttribute('data-bs-theme',theme); }
 function get_folder(path) { return path.split('/').slice(0,-1).join('/'); }
@@ -129,6 +131,14 @@ class myque {
 		this.text = text;
 	}
 };
+
+function mk_guide(o) {
+	const f = parseInt(max_jimaku_char_length*0.85*parseFloat(o.css('font-size')));
+	const w = parseInt(o.css('width'));
+	const h = parseInt(o.css('height'));
+	const x = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w-1} ${h-1}"><line x1="${f}" y1="1" x2="${f}" y2="${h-2}" stroke="white" stroke-dasharray="4" stroke-width="1"></line></svg>`;
+	return 'url(\'data:image/svg+xml;charset=utf8,'+encodeURIComponent(x)+'\')';
+}
 
 var video_control = null;
 var vtt_name;
@@ -250,6 +260,7 @@ function update_vtt() {
 			c.i = i;
 		});
 	$('#table-subtitle [data-bs-toggle="tooltip"]').map(function(i,e){ new bootstrap.Tooltip(e,{trigger:'hover'}); });
+	$('.cue-text').each(function(){ $(this).css('background-image',mk_guide($(this))); });
 }
 
 $(document).ready( function(){
