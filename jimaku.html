@@ -2,7 +2,7 @@
 <html lang='ja'>
 <head>
 	<meta charset='UTF-8'>
-	<title>時刻合わせ 2025-05-12</title>
+	<title>時刻合わせ 2025-05-13</title>
 	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
 	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
 </head>
@@ -57,13 +57,14 @@
 	<div class="row d-flex align-items-center" id="div-control">
 		<div class="col-auto">
 			<div class="btn-group m-2">
-			<button class="btn btn-secondary" id="play-pause"><img src="./icons/play-white.svg" width="24" height="24"/></button>
-			<button class="btn btn-secondary" id="stop"><img src="./icons/stop-white.svg" width="24" height="24"/></button>
+			<button class="btn btn-secondary" id="play-pause"><img src="./icons/play-white.svg" width="16" height="16"/></button>
+			<button class="btn btn-secondary" id="stop"><img src="./icons/stop-white.svg" width="16" height="16"/></button>
+			<button class="btn btn-secondary" id="play-rate">1.0</button>
 			</div>
 		</div>
-		<div class="col-auto"><button class="btn btn-secondary" id="step-backward" data-bs-toggle="tooltip" title="1秒戻す"><img src="./icons/caret-left-white.svg" width="24" height="24"/></button></div>
+		<div class="col-auto"><button class="btn btn-secondary" id="step-backward" data-bs-toggle="tooltip" title="1秒戻す"><img src="./icons/caret-left-white.svg" width="16" height="16"/></button></div>
 		<div class="col"><input class="form-range" type="range" id="video-seek" disabled /></div>
-		<div class="col-auto"><button class="btn btn-secondary" id="step-forward" data-bs-toggle="tooltip" title="1秒進める"><img src="./icons/caret-right-white.svg" width="24" height="24"/></button></div>
+		<div class="col-auto"><button class="btn btn-secondary" id="step-forward" data-bs-toggle="tooltip" title="1秒進める"><img src="./icons/caret-right-white.svg" width="16" height="16"/></button></div>
 		<div class="col-auto"><input class="form-text text-center" type="text" id="video-time" disabled /></div>
 	</div>
 </div>
@@ -80,6 +81,7 @@
 				<li>表示時刻左クリックで、動画の頭出し</li>
 				<li>黄色の表示時刻は、前の字幕とのかぶり警告</li>
 				<li>作業完了後、字幕ファイルの保存を忘れない</li>
+				<li>動画停止ボタン横は再生速度変更ボタンです</li>
 			</ul>
 			<span class="badge bg-warning fs-5 w-100 text-center align-middle">ツールボタン</span>
 			<div class="col mx-auto align-self-center">
@@ -141,6 +143,7 @@ function mk_guide(o) {
 }
 
 var video_control = null;
+var video_rate = 1;
 var vtt_name;
 var vtt_lst = [];
 var vtt_src = null;
@@ -411,11 +414,19 @@ $(document).ready( function(){
 	});
 
 	$('#video-seek').on('input',function(){ video_control.seek(this.valueAsNumber); });	// this は function() と ()=> で違う。
-	$('#play-pause').on('click',()=>{ if ( video_control.is_paused() ) { video_control.play(); } else { video_control.pause(); } });
+	$('#play-pause').on('click',()=>{ if ( video_control.is_paused() ) { video_control.play(video_rate); } else { video_control.pause(); } });
 	$('#stop').on('click',()=>{ video_control.seek(0); });
 	$('#step-forward').on('click',()=>{ video_control.seek(Math.min(video_control.duration(),video_control.current_time()+1.0)); });
 	$('#step-backward').on('click',()=>{ video_control.seek(Math.max(0,video_control.current_time()-1.0)); });
 	$('#load-video').on('click',()=>{ video_control.load(); });
+	$('#play-rate').on('click',function(){
+		switch (video_rate) {
+			case 1: { video_rate = 1.5; break; } 
+			case 1.5: { video_rate = 2; break; } 
+			case 2: { video_rate = 1; break; }
+		}
+		$(this).text(sprintf("%.1f",video_rate));
+	});
 	function on_load(){
 		$('#video-id').val(video_control.video_id());
 		var slide = $('#video-seek').get(0);
@@ -481,7 +492,7 @@ function video_control_mp4() {
 	var video_name = 'none';
 
 	function video_id() { return video_name; }
-	function play() { video.play(); }
+	function play(rate) { video.playbackRate = rate; video.play(); } // playbackRate is 0-5
 	function pause() { video.pause(); }
 	function seek(t) { if (!video.paused) { video.pause(); } video.currentTime = t; $('#table-subtitle textarea.bg-warning-subtle').removeClass(bs_warning); }
 	function is_paused() { return ( video.paused ? true : false ); }
@@ -548,8 +559,9 @@ function video_control_youtube() {
 	var m_duration = 0;
 
 	function video_id() { return m_id; }
-	function play(){
+	function play(rate){
 		m_current_time = m_player.getCurrentTime();
+		m_player.setPlaybackRate(rate);
 		m_player.playVideo();
 		m_timer = setInterval(function(){
 			m_current_time = m_player.getCurrentTime();
