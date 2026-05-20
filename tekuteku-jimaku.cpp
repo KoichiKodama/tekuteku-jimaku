@@ -39,7 +39,7 @@ namespace asio = boost::asio;
 
 static std::string m_package_folder; // アプリ本体のフォルダ
 static std::string m_local_folder; // アプリが読み書きできるフォルダ
-static std::string m_version = "build 2026-05-20";
+static std::string m_version = "build 2026-05-21";
 static std::string m_server_name = "tekuteku-jimaku";
 static std::string m_logfile = "tekuteku-jimaku.log";
 static asio::ip::port_type m_port = 8080;
@@ -263,6 +263,12 @@ void exec_listen( asio::io_context& ioc, asio::ip::tcp::endpoint endpoint, asio:
 asio::io_context ioc_x(6);
 static std::thread thread_x{};
 
+void terminate_server() {
+	ioc_x.stop();
+	thread_x.join();
+	log("service stopped");
+}
+
 int main( int argc, char** argv ) {
 	winrt::init_apartment();
 	try {
@@ -282,19 +288,20 @@ int main( int argc, char** argv ) {
 		m_local_folder = ".";
 		#endif
 
+		// 同一ポートでの多重起動禁止はトレーの存在確認で行う。
+		std::string tray_name = "tekuteku-jimaku";
+		if ( tray_exist(tray_name.c_str()) == 1 ) {
+			log("service already started");
+			const winrt::hstring uri = winrt::to_hstring((boost::format("http://localhost:%d/jimaku.html") % m_port).str());
+			winrt::Windows::System::Launcher::LaunchUriAsync(winrt::Windows::Foundation::Uri(uri)).get();
+			return 0;
+		}
+
 		m_logfile = m_local_folder+"/"+m_logfile;
 		truncate_log();
 		log(boost::format("started %s on port=%d") % m_version % m_port);
 		log(boost::format("package-folder = %s") % m_package_folder);
 		log(boost::format("local-folder = %s") % m_local_folder);
-
-		// 同一ポートでの多重起動禁止はトレーの存在確認で行う。
-		std::string tray_name = "tekuteku-jimaku";
-		if ( tray_exist(tray_name.c_str()) == 1 ) {
-			log("stop due to multiple servers");
-			MessageBoxW(NULL,L"複数のてくてく字幕サーバを動かせません。",L"てくてく字幕",MB_OK);
-			return 0;
-		}
 
 		thread_x = std::move(std::thread([]{
 			try {
@@ -310,9 +317,7 @@ int main( int argc, char** argv ) {
 
 		const winrt::hstring uri = winrt::to_hstring((boost::format("http://localhost:%d/jimaku.html") % m_port).str());
 		winrt::Windows::System::Launcher::LaunchUriAsync(winrt::Windows::Foundation::Uri(uri));
-		if ( tray_init("tekuteku-jimaku","tekuteku-jimaku.ico") == 0 ) { while ( tray_loop(1) == 0 ) {} }
-		ioc_x.stop(); thread_x.join();
-		log("service stopped");
+		if ( tray_init("tekuteku-jimaku","tekuteku-jimaku.ico",terminate_server) == 0 ) { while ( tray_loop(1) == 0 ) {} }
 		return 0;
 	}
 	catch ( winrt::hresult_error const& ex ) { MessageBoxW(NULL,ex.message().c_str(),L"てくてく字幕サーバのエラー",MB_OK); }
