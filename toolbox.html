@@ -2,7 +2,7 @@
 <html lang='ja' data-bs-theme="dark">
 <head>
 	<meta charset='UTF-8'>
-	<title>字幕作業の道具箱 2025-04-25</title>
+	<title>字幕作業の道具箱 2026-05-20</title>
 	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
 	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
 </head>
@@ -31,9 +31,14 @@
 
 <script src='./tools/jquery-3.6.0/jquery-3.6.0.min.js'></script>
 <script src='./tools/bootstrap-5.3.0/js/bootstrap.bundle.min.js'></script>
-<script src='./tools/sprintf-1.1.2/sprintf.min.js'></script>
 <script type="text/javascript"> 
 'use strict';
+
+function set_theme(theme) { document.documentElement.setAttribute('data-bs-theme',theme); }
+function get_folder(path) { return path.split('/').slice(0,-1).join('/'); }
+
+function dd(num,w) { return Number.parseInt(num).toString().padStart(w,'0'); }
+function ff(num,w) { return Number.parseFloat(num).toFixed(w).toString(); }
 
 function t2s(t) {
 	if ( t === NaN ) return "--:--:--";
@@ -42,7 +47,7 @@ function t2s(t) {
 	var ss = tt%60; tt = Math.floor(tt/60);
 	var mm = tt%60; tt = Math.floor(tt/60);
 	var hh = tt;
-	return sprintf("%02d:%02d:%02d.%03d",hh,mm,ss,xx);
+	return `${dd(hh,2)}:${dd(mm,2)}:${dd(ss,2)}:${dd(xx,3)}`;
 }
 
 function s2t(s) {
@@ -126,7 +131,7 @@ $(document).ready( function(){
 			switch (job) {
 			case 0:
 				o_fname = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.tekuteku.txt');
-				vtt_lst.forEach(function(c,i){ a.push(sprintf('%s --> %s %s\n',t2s(c.startTime),t2s(c.endTime),c.text.replace(/\n/g,'\t'))); });
+				vtt_lst.forEach(function(c,i){ a.push(`${t2s(c.startTime)} --> ${t2s(c.endTime)} ${c.text.replace(/\n/g,'\t')}\n`); });
 				break;
 
 			case 1:
@@ -134,17 +139,17 @@ $(document).ready( function(){
 				const split_max_length = 60; // 字幕分割の最大文字数
 				o_fname = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.js');
 				let mp4 = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.mp4');
-				a.push(sprintf('mp4_file_name = encodeURI("%s");\n',mp4));
+				a.push(`mp4_file_name = encodeURI("${mp4}");\n`);
 				if ( vtt_lst.length != 0 ) {
 					a.push('vtt_lst = [];\n');
 					vtt_lst.forEach(function(c){
-						a.push(sprintf('vtt_lst.push(new myque(%d,%f,%f,"%s"));\n',c.i,c.startTime,c.endTime,my_split(c.text,split_min_length,split_max_length,'ja-JP').join('\\n')));
+						a.push(`vtt_lst.push(new myque(${c.i},${c.startTime},${c.endTime},"${my_split(c.text,split_min_length,split_max_length,'ja-JP').join('\\n')}"));\n`);
 					});
 				}
 				break;
 			case 2:
 				o_fname = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.srt');
-				vtt_lst.forEach(function(c,i){ a.push(sprintf('%d\n%s --> %s\n%s\n\n',i+1,t2s(c.startTime),t2s(c.endTime),c.text)); });
+				vtt_lst.forEach(function(c,i){ a.push(`${i+1}\n${t2s(c.startTime)} --> ${t2s(c.endTime)}\n${c.text}\n\n`); });
 				break;
 			}
 

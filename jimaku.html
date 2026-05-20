@@ -2,7 +2,7 @@
 <html lang='ja'>
 <head>
 	<meta charset='UTF-8'>
-	<title>時刻合わせ 2025-12-30</title>
+	<title>時刻合わせ 2026-05-20</title>
 	<link href='./tools/bootstrap-5.3.0/css/bootstrap.min.css' rel='stylesheet'>
 	<meta name='viewport' content='width=device-width,initial-scale=1,shrink-to-fit=no'>
 </head>
@@ -99,7 +99,6 @@
 	
 <script src='./tools/jquery-3.6.0/jquery-3.6.0.min.js'></script>
 <script src='./tools/bootstrap-5.3.0/js/bootstrap.bundle.min.js'></script>
-<script src='./tools/sprintf-1.1.2/sprintf.min.js'></script>
 <script type='text/javascript'>
 'use strict';
 
@@ -150,13 +149,16 @@ var vtt_src = null;
 var vtt_height = 0;
 var time_shift = false;
 
+function dd(num,w) { return Number.parseInt(num).toString().padStart(w,'0'); }
+function ff(num,w) { return Number.parseFloat(num).toFixed(w).toString(); }
+
 function t2s(t) {
 	if ( t === NaN ) return "--:--:--";
 	var xx = (t*1000)%1000; t = Math.floor(t);
 	var ss = t%60; t = Math.floor(t/60);
 	var mm = t%60; t = Math.floor(t/60);
 	var hh = t;
-	return sprintf("%02d:%02d:%02d.%03d",hh,mm,ss,xx);
+	return `${dd(hh,2)}:${dd(mm,2)}:${dd(ss,2)}:${dd(xx,3)}`;
 }
 
 function s2t(s) {
@@ -248,18 +250,17 @@ function remove_blank_vtt() { vtt_lst = vtt_lst.filter((c)=>{ return c.text.leng
 function update_vtt() {
 	$('#table-subtitle [data-bs-toggle="tooltip"]').map(function(i,e){ bootstrap.Tooltip.getInstance(e).dispose(); });
 	$('#table-subtitle > tbody').empty();
-	var fmt = 
-		'<tr>'+
-		'<td><button class="btn btn-secondary text-white cue-button" value="%d" data-bs-toggle="tooltip" title="時刻設定"><img src="./icons/pin-white.svg" width="24" height="24"/></button></td>'+
-		'<td><button class="btn btn-secondary text-white ins-button" value="%d" data-bs-toggle="tooltip" title="下に挿入"><img src="./icons/arrow-bar-down-white.svg" width="24" height="24"/></button></td>'+
-		'<td class="cue-time %s">%s</td><td><input type="text" class="cue-duration form-control text-end" style="height:2em;" value="%.1f" data-bs-toggle="tooltip" title="継続時間"/></td>'+
-		'<td><textarea class="cue-text form-control" rows="%d" style="resize:none; overflow:hidden;">%s</textarea></td>'+
-		'</tr>';
 	vtt_lst
 		.sort((a,b)=>{ return ( a.startTime == b.startTime ? ( a.i < b.i ? -1 : +1 ) : ( a.startTime < b.startTime ? -1 : +1 ) ); })
 		.forEach(function(c,i){
 			let color = ( i != 0 && c.startTime < vtt_lst[i-1].endTime ? 'text-bg-warning' : '' );
-			$('#table-subtitle > tbody').append(sprintf(fmt,i,i,color,t2s(c.startTime),(c.endTime-c.startTime),count_rows(c.text),c.text));
+			$('#table-subtitle > tbody').append(
+				'<tr>'+
+				`<td><button class="btn btn-secondary text-white cue-button" value="${i}" data-bs-toggle="tooltip" title="時刻設定"><img src="./icons/pin-white.svg" width="24" height="24"/></button></td>`+
+				`<td><button class="btn btn-secondary text-white ins-button" value="${i}" data-bs-toggle="tooltip" title="下に挿入"><img src="./icons/arrow-bar-down-white.svg" width="24" height="24"/></button></td>`+
+				`<td class="cue-time ${color}">${t2s(c.startTime)}</td><td><input type="text" class="cue-duration form-control text-end" style="height:2em;" value="${ff(c.endTime-c.startTime,1)}" data-bs-toggle="tooltip" title="継続時間"/></td>`+
+				`<td><textarea class="cue-text form-control" rows="${count_rows(c.text)}" style="resize:none; overflow:hidden;">${c.text}</textarea></td>`+
+				'</tr>');
 			c.i = i;
 		});
 	$('#table-subtitle [data-bs-toggle="tooltip"]').map(function(i,e){ new bootstrap.Tooltip(e,{trigger:'hover'}); });
@@ -383,14 +384,14 @@ $(document).ready( function(){
 		if ( $('#save-tekutekutxt').prop('checked') == false ) {
 			var name = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.編集後.vtt');
 			var a = ["WEBVTT\n\n"];
-			vtt_lst.forEach(function(c,i){ a.push(sprintf('%s --> %s\n%s\n\n',t2s(c.startTime),t2s(c.endTime),c.text)); });
+			vtt_lst.forEach(function(c,i){ a.push(`${t2s(c.startTime)} --> ${t2s(c.endTime)}\n${c.text}\n\n`); });
 			b = new Blob(a,{type:'text/vtt'});
 			t = {'text/vtt':['.vtt']};
 		}
 		else {
 			var name = vtt_name.replace(/^(.+)[.](\S+)$/,'$1.編集後.txt');
 			var a = [];
-			vtt_lst.forEach((c,i)=>{ a.push(sprintf('%s --> %s %s\n',t2s(c.startTime),t2s(c.endTime),c.text.replace(/\n/g,'\t'))); });
+			vtt_lst.forEach((c,i)=>{ a.push(`${t2s(c.startTime)} --> ${t2s(c.endTime)} ${c.text.replace(/\n/g,'\t')}\n`); });
 			b = new Blob(a,{type:'text/plain'});
 			t = {'text/txt':['.txt']};
 		}
@@ -425,7 +426,7 @@ $(document).ready( function(){
 			case 1.5: { video_rate = 2; break; } 
 			case 2: { video_rate = 1; break; }
 		}
-		$(this).text(sprintf("%.1f",video_rate));
+		$(this).text(ff(video_rate,1));
 	});
 	function on_load(){
 		$('#video-id').val(video_control.video_id());
@@ -434,12 +435,12 @@ $(document).ready( function(){
 		slide.step = 0.05;
 		slide.min = slide.value = 0;
 		slide.max = video_control.duration();
-		$('#video-time').val(sprintf("%s/%s",t2s(video_control.current_time()).substr(0,8),t2s(video_control.duration()).substr(0,8)));
+		$('#video-time').val(`${t2s(video_control.current_time()).substr(0,8)}/${t2s(video_control.duration()).substr(0,8)}`);
 	}
 	function on_play(){ $('#play-pause').html('<img src="./icons/pause-white.svg" width="24" height="24" />'); };
 	function on_pause(){ $('#play-pause').html('<img src="./icons/play-white.svg" width="24" height="24" />'); };
 	function on_timechange(){
-		$('#video-time').val(sprintf("%s/%s",t2s(video_control.current_time()).substr(0,8),t2s(video_control.duration()).substr(0,8)));
+		$('#video-time').val(`${t2s(video_control.current_time()).substr(0,8)}/${t2s(video_control.duration()).substr(0,8)}`);
 		$('#video-seek').val(video_control.current_time());
 	}
 
@@ -469,7 +470,7 @@ $(document).ready( function(){
 		let script = document.createElement("script");
 		script.src = args.get('auto');
 		script.onload = function(){
-			video_control.load(sprintf('%s/%s',get_folder(script.src),mp4_file_name));
+			video_control.load(`${get_folder(script.src)}/${mp4_file_name}`);
 			update_vtt();
 		};
 		document.documentElement.firstChild.appendChild(script);
