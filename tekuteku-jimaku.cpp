@@ -39,7 +39,7 @@ namespace asio = boost::asio;
 
 static std::string m_package_folder; // アプリ本体のフォルダ
 static std::string m_local_folder; // アプリが読み書きできるフォルダ
-static std::string m_version = "build 2026-05-21";
+static std::string m_version = "build 2026-10-27";
 static std::string m_server_name = "tekuteku-jimaku";
 static std::string m_logfile = "tekuteku-jimaku.log";
 static asio::ip::port_type m_port = 8080;
@@ -296,6 +296,7 @@ int main( int argc, char** argv ) {
 			winrt::Windows::System::Launcher::LaunchUriAsync(winrt::Windows::Foundation::Uri(uri)).get();
 			return 0;
 		}
+		if ( tray_init("tekuteku-jimaku","tekuteku-jimaku.ico") != 0 ) { log("tray_init failed"); return 0; }
 
 		m_logfile = m_local_folder+"/"+m_logfile;
 		truncate_log();
@@ -312,12 +313,12 @@ int main( int argc, char** argv ) {
 				asio::spawn(ioc_x,std::bind(&exec_listen,std::ref(ioc_x),ep,std::placeholders::_1));
 				ioc_x.run();
 			}
-			catch ( boost::system::system_error& e ) { log(boost::format("boost exception in thread_x : %s") % e.what()); }
+			catch ( boost::system::system_error& e ) { log(boost::format("boost exception in thread_x : %s") % e.what()); tray_terminate(); }
 		}));
 
 		const winrt::hstring uri = winrt::to_hstring((boost::format("http://localhost:%d/jimaku.html") % m_port).str());
 		winrt::Windows::System::Launcher::LaunchUriAsync(winrt::Windows::Foundation::Uri(uri));
-		if ( tray_init("tekuteku-jimaku","tekuteku-jimaku.ico",terminate_server) == 0 ) { while ( tray_loop(1) == 0 ) {} }
+		while ( tray_loop(1,terminate_server) == 0 ) {}
 		return 0;
 	}
 	catch ( winrt::hresult_error const& ex ) { MessageBoxW(NULL,ex.message().c_str(),L"てくてく字幕サーバのエラー",MB_OK); }
