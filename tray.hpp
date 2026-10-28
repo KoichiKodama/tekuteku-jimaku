@@ -119,8 +119,10 @@ static void tray_terminate() { if ( hwnd != NULL ) PostMessage(hwnd,WM_CLOSE,0,0
 #include <pthread.h>
 #include <signal.h>
 
+static terminate_job_t m_job;
 static sigset_t m_ss;
 static pthread_t m_id;
+
 static int tray_exist( const char* tray_name ) { return 0; }
 static int tray_init( const char* tray_name, const char* icon_file_name ) {
 	m_id = pthread_self();
